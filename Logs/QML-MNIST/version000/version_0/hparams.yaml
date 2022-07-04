@@ -1,0 +1,20 @@
+opt:
+  optimizer: Adam
+  lr: 0.0001
+net:
+  model: MNIST_QHN
+  num_classes: 10
+  MNIST_QHN:
+    n_qubits: 6
+    shift: 0.6
+    lstm_hidden: 128
+    linear_out: 64
+    shots: 200
+  hybrid:
+    n_qubits: 3
+    simulator: aer_simulator
+    shift: 0.5
+    shots: 100
+    is_cnot: true
+    dense_type: 2
+inputs: null

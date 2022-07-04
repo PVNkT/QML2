@@ -1,0 +1,58 @@
+log:
+  model_name: MNIST_QHN
+  project_name: QML-MNIST
+  val_log_freq_epoch: 1
+  epoch: 100
+  n_fold: 5
+  dry_run: false
+  device:
+    gpu:
+      - 0
+  log_path: Logs
+  checkpoint_path: Checkpoints
+  precision: 32
+
+loader:
+  train:
+    batch_size: 32
+    num_workers: 8
+    pin_memory: True
+    shuffle: True
+  eval:
+    batch_size: 1000
+    num_workers: 8
+    pin_memory: False
+    shuffle: False
+  samples:
+    train_sample: 1000
+    eval_sample: 100
+
+data:
+  path: Data/preprocessed/all
+
+network:
+  model: ${log.model_name}
+  num_classes: 10
+  MNIST_QHN: ${MNIST_QHN}
+  hybrid: ${quantum_circuit}
+
+optimizer:
+  optimizer: Adam
+  lr: 1e-4
+
+MNIST_QHN:
+  n_qubits: 6
+  shift: 0.6
+  lstm_hidden: 128
+  linear_out: 64
+  shots: 200
+
+quantum_circuit:
+  n_qubits: 6
+  simulator: aer_simulator
+  shift: 0.6
+  shots: 100
+
+
+
+
