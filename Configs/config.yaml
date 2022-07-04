@@ -31,12 +31,7 @@ data:
 network:
   model: ${log.model_name}
   num_classes: 2
-  encoder: ${SCCNN_bn}
-  attention: ${Attention}
   LSTM: ${LSTM}
-  decoder: ${Decoder}
-  is_encoder_shared: True
-  encoderType: SCCNN_bn
   Simple_QHN: ${Simple_QHN}
   hybrid: ${quantum_circuit}
 
@@ -45,5 +40,4 @@ optimizer:
   lr: 1e-5
 
 
-runner: OneSiteHoldout_Runner
 

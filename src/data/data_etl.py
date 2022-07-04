@@ -137,24 +137,6 @@ def chunks(lst, n):
     return [lst[i : i + div] for i in range(0, len(lst), div)]
 
 
-@dataclass
-class Load_MNIST:
-    def __init__(self, is_train:Boolean):
-        if is_train:
-            self.dataset = dataset.MNIST(root='mnist_dataset/raw', train=True, download=True,
-                         transform=transforms.Compose([transforms.ToTensor()]))
-        else:
-            self.dataset = dataset.MNIST(root='mnist_dataset/raw', train=False, download=True,
-                        transform=transforms.Compose([transforms.ToTensor()]))
-                        
-    def get_samples(self, n_samples:int):
-        idx = []
-        for i in range(10):
-            idx.append(np.where(self.dataset.targets == i)[0][:n_samples])#각 target에 해당되는 번호를 저장한다. 
-        idx = np.array(idx).reshape(-1)
-        self.dataset.data = self.dataset.data[idx]
-        self.dataset.targets = self.dataset.targets[idx]
-        return self.dataset
 
 
 

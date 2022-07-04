@@ -1,0 +1,57 @@
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+Traceback (most recent call last):
+  File "/home/sol/git/QML2/run.py", line 25, in <module>
+    main()
+  File "/home/sol/git/QML2/run.py", line 21, in main
+    metrics = runner.run(profiler=cfg.get("profiler", "simple"))
+  File "/home/sol/git/QML2/src/runners/runner.py", line 164, in run
+    trainer.fit(model, datamodule=dm)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 768, in fit
+    self._call_and_handle_interrupt(
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 721, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 809, in _fit_impl
+    results = self._run(model, ckpt_path=self.ckpt_path)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1162, in _run
+    self._data_connector.prepare_data()
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/data_connector.py", line 114, in prepare_data
+    dm_prepare_data_per_node = datamodule.prepare_data_per_node
+AttributeError: 'DataModule' object has no attribute 'prepare_data_per_node'
+Traceback (most recent call last):
+  File "/home/sol/git/QML2/run.py", line 25, in <module>
+    main()
+  File "/home/sol/git/QML2/run.py", line 21, in main
+    metrics = runner.run(profiler=cfg.get("profiler", "simple"))
+  File "/home/sol/git/QML2/src/runners/runner.py", line 164, in run
+    trainer.fit(model, datamodule=dm)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 768, in fit
+    self._call_and_handle_interrupt(
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 721, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 809, in _fit_impl
+    results = self._run(model, ckpt_path=self.ckpt_path)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1162, in _run
+    self._data_connector.prepare_data()
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/data_connector.py", line 114, in prepare_data
+    dm_prepare_data_per_node = datamodule.prepare_data_per_node
+AttributeError: 'DataModule' object has no attribute 'prepare_data_per_node'
+Traceback (most recent call last):
+  File "/home/sol/git/QML2/run.py", line 25, in <module>
+    main()
+  File "/home/sol/git/QML2/run.py", line 21, in main
+    metrics = runner.run(profiler=cfg.get("profiler", "simple"))
+  File "/home/sol/git/QML2/src/runners/runner.py", line 164, in run
+    trainer.fit(model, datamodule=dm)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 768, in fit
+    self._call_and_handle_interrupt(
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 721, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 809, in _fit_impl
+    results = self._run(model, ckpt_path=self.ckpt_path)
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1162, in _run
+    self._data_connector.prepare_data()
+  File "/home/sol/.local/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/data_connector.py", line 114, in prepare_data
+    dm_prepare_data_per_node = datamodule.prepare_data_per_node

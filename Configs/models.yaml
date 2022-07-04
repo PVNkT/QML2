@@ -1,6 +1,6 @@
 
 LSTM:
-  input_size: ${SCCNN.conv_block4.out_f}
+  input_size: 116
   hidden_size: 128
   num_layers: 1
   bidirectional: True
@@ -8,9 +8,9 @@ LSTM:
 Simple_QHN:
   n_qubits: 2
   shift: 0.6
-  is_cnot: True
   lstm_hidden: 128
   linear_out: 64
+  backend: aer_simulator
 
 
 quantum_circuit:
@@ -18,5 +18,4 @@ quantum_circuit:
   simulator: aer_simulator
   shift: 0.5
   shots: 100
-  is_cnot: True
   dense_type: 2

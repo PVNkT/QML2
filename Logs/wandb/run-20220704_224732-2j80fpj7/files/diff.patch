@@ -1,0 +1,404 @@
+diff --git a/Configs/models.yaml b/Configs/models.yaml
+index 2c5c2ba..63b272d 100644
+--- a/Configs/models.yaml
++++ b/Configs/models.yaml
+@@ -8,9 +8,9 @@ LSTM:
+ Simple_QHN:
+   n_qubits: 2
+   shift: 0.6
+-  is_cnot: True
+   lstm_hidden: 128
+   linear_out: 64
++  backend: aer_simulator
+ 
+ 
+ quantum_circuit:
+@@ -18,5 +18,4 @@ quantum_circuit:
+   simulator: aer_simulator
+   shift: 0.5
+   shots: 100
+-  is_cnot: True
+   dense_type: 2
+\ No newline at end of file
+diff --git a/Logs/QML-MNIST/version000/version_0/hparams.yaml b/Logs/QML-MNIST/version000/version_0/hparams.yaml
+index 3851257..000d975 100644
+--- a/Logs/QML-MNIST/version000/version_0/hparams.yaml
++++ b/Logs/QML-MNIST/version000/version_0/hparams.yaml
+@@ -15,6 +15,5 @@ net:
+     simulator: aer_simulator
+     shift: 0.5
+     shots: 100
+-    is_cnot: true
+     dense_type: 2
+ inputs: null
+diff --git a/run.py b/run.py
+index c8e1ccf..69d3f58 100644
+--- a/run.py
++++ b/run.py
+@@ -1,7 +1,7 @@
+ from omegaconf import OmegaConf
+ from pathlib import Path
+ 
+-from src.runners import S_Runner, MNIST_Runner
++from src.runners import S_Runner
+ 
+ CONFIG_DIR = Path("Configs")
+ 
+@@ -11,7 +11,7 @@ def main(cfg=OmegaConf.load(CONFIG_DIR / "config.yaml")) -> None:
+     cfg = OmegaConf.merge(cfg, model_params)
+     cfg.merge_with_cli()
+ 
+-    runner = MNIST_Runner(
++    runner = S_Runner(
+         log=cfg.log,
+         optimizer=cfg.optimizer,
+         loader=cfg.loader,
+@@ -22,4 +22,4 @@ def main(cfg=OmegaConf.load(CONFIG_DIR / "config.yaml")) -> None:
+ 
+ 
+ if __name__ == "__main__":
+-    main(cfg=OmegaConf.load(CONFIG_DIR / "config MNIST.yaml"))
++    main()
+diff --git a/src/data/__pycache__/data_etl.cpython-38.pyc b/src/data/__pycache__/data_etl.cpython-38.pyc
+index 288d14c..934cbd5 100644
+Binary files a/src/data/__pycache__/data_etl.cpython-38.pyc and b/src/data/__pycache__/data_etl.cpython-38.pyc differ
+diff --git a/src/data/__pycache__/loader.cpython-38.pyc b/src/data/__pycache__/loader.cpython-38.pyc
+index eddf358..67504ef 100644
+Binary files a/src/data/__pycache__/loader.cpython-38.pyc and b/src/data/__pycache__/loader.cpython-38.pyc differ
+diff --git a/src/data/__pycache__/sampling.cpython-38.pyc b/src/data/__pycache__/sampling.cpython-38.pyc
+index a2cbaf3..a748fd2 100644
+Binary files a/src/data/__pycache__/sampling.cpython-38.pyc and b/src/data/__pycache__/sampling.cpython-38.pyc differ
+diff --git a/src/data/data_etl.py b/src/data/data_etl.py
+index 08700be..dc691b0 100755
+--- a/src/data/data_etl.py
++++ b/src/data/data_etl.py
+@@ -137,24 +137,6 @@ def chunks(lst, n):
+     return [lst[i : i + div] for i in range(0, len(lst), div)]
+ 
+ 
+-@dataclass
+-class Load_MNIST:
+-    def __init__(self, is_train:Boolean):
+-        if is_train:
+-            self.dataset = dataset.MNIST(root='mnist_dataset/raw', train=True, download=True,
+-                         transform=transforms.Compose([transforms.ToTensor()]))
+-        else:
+-            self.dataset = dataset.MNIST(root='mnist_dataset/raw', train=False, download=True,
+-                        transform=transforms.Compose([transforms.ToTensor()]))
+-                        
+-    def get_samples(self, n_samples:int):
+-        idx = []
+-        for i in range(10):
+-            idx.append(np.where(self.dataset.targets == i)[0][:n_samples])#각 target에 해당되는 번호를 저장한다. 
+-        idx = np.array(idx).reshape(-1)
+-        self.dataset.data = self.dataset.data[idx]
+-        self.dataset.targets = self.dataset.targets[idx]
+-        return self.dataset
+ 
+ 
+ 
+diff --git a/src/data/loader.py b/src/data/loader.py
+index 288a3b3..158cbdc 100644
+--- a/src/data/loader.py
++++ b/src/data/loader.py
+@@ -5,25 +5,8 @@ from typing import Union, List
+ import torch
+ from torch.utils.data import Dataset
+ 
+-from src.data import Load, SITES_DICT, Load_MNIST
+-
+-class MNISTDataset(Dataset):
+-    def __init__(self, n_samples: int, is_train: Boolean) -> None:
+-        Load = Load_MNIST(is_train)
+-        if n_samples >0:
+-            self.data = Load.get_samples(n_samples=n_samples).data
+-            self.labels = Load.get_samples(n_samples=n_samples).targets  
+-        else:  
+-            self.data = Load.dataset.data
+-            self.labels = Load.dataset.targets
++from src.data import Load, SITES_DICT
+ 
+-    def __len__(self):
+-        return len(self.labels)
+-    
+-    def __getitem__(self, index: int):
+-        data = self.data[index]
+-        label = self.labels[index]
+-        return data, label 
+   
+ class ROIDataset(Dataset):
+     def __init__( self, site: Union[List, str]) -> None:
+diff --git a/src/datamodules/__pycache__/datamodule.cpython-38.pyc b/src/datamodules/__pycache__/datamodule.cpython-38.pyc
+index 6f06b1a..295b581 100644
+Binary files a/src/datamodules/__pycache__/datamodule.cpython-38.pyc and b/src/datamodules/__pycache__/datamodule.cpython-38.pyc differ
+diff --git a/src/datamodules/datamodule.py b/src/datamodules/datamodule.py
+index 4fcab3d..b73f2f1 100644
+--- a/src/datamodules/datamodule.py
++++ b/src/datamodules/datamodule.py
+@@ -7,56 +7,15 @@ from torch.utils.data import DataLoader, Subset
+ from pytorch_lightning import LightningDataModule
+ from src.data import collate_fn, SamplerFactory
+ 
++
+ @dataclass
+-class MNISTDataModule(LightningDataModule):
+-    
+-    def __init__(self,data: Dict,loader: Dict,dataset: Dict):
++class DataModule(LightningDataModule):
++    def __init__(self, data: Dict, loader: Dict, dataset: Dict):
+         super().__init__()
+-        self.prepare_data_per_node = True
+         self.data = data
+         self.loader = loader
+         self.dataset = dataset
+-    def setup(self, stage: Optional[str] = None):
+-        if stage in ("fit", None):
+-            self.train_dataset = self.dataset(n_samples = self.loader.samples.train_sample, is_train=True)
+-            self.val_dataset = self.dataset(n_samples = self.loader.samples.eval_sample, is_train=False)
+-
+-        if stage in ("test", None):
+-            self.test_dataset = self.dataset(n_samples = self.loader.samples.eval_sample, is_train=False)
+-    
+-    def train_dataloader(self):
+-        conf = deepcopy(self.loader.train)
+-        batch_size = conf.pop("batch_size")
+-        conf.shuffle = False
+-        # return DataLoader(self.train_dataset, **conf, collate_fn=collate_fn)
+-
+-        return DataLoader(
+-            self.train_dataset,
+-            **conf,
+-            collate_fn=collate_fn,
+-            batch_sampler=SamplerFactory().get(
+-                class_idxs=[
+-                    np.where(self.train_dataset.labels == i)[0].tolist()
+-                    for i in range(10)
+-                ],
+-                batch_size=batch_size,
+-                n_batches=len(self.train_dataset)//batch_size + 5,
+-                alpha=1.0,
+-                kind="random",
+-            ),
+-        )
+-
+-    def val_dataloader(self):
+-        return DataLoader(self.val_dataset, **self.loader.eval, collate_fn=collate_fn)
+-
+-    def test_dataloader(self):
+-        return DataLoader(self.test_dataset, **self.loader.eval, collate_fn=collate_fn)
+-
+-@dataclass
+-class DataModule(LightningDataModule):
+-    data: Dict
+-    loader: Dict
+-    dataset: Dict
++        self.prepare_data_per_node = True
+ 
+     def setup(self, stage: Optional[str] = None):
+         if stage in ("fit", None):
+diff --git a/src/layers/__pycache__/__init__.cpython-38.pyc b/src/layers/__pycache__/__init__.cpython-38.pyc
+index 31453e2..a73c856 100644
+Binary files a/src/layers/__pycache__/__init__.cpython-38.pyc and b/src/layers/__pycache__/__init__.cpython-38.pyc differ
+diff --git a/src/layers/__pycache__/quantum_layers.cpython-38.pyc b/src/layers/__pycache__/quantum_layers.cpython-38.pyc
+index 4f219f9..3e30b2e 100644
+Binary files a/src/layers/__pycache__/quantum_layers.cpython-38.pyc and b/src/layers/__pycache__/quantum_layers.cpython-38.pyc differ
+diff --git a/src/layers/quantum_layers.py b/src/layers/quantum_layers.py
+index 976aa6a..4dfccfa 100644
+--- a/src/layers/quantum_layers.py
++++ b/src/layers/quantum_layers.py
+@@ -35,7 +35,7 @@ class QuantumCircuit:
+         for theta, qubit in zip(self.theta, self.all_qubits):
+             self._circuit.ry(theta, qubit)
+ 
+-        for i in [2,3,4,5]:
++        for i in range(2, self.n_qubit):
+             self._circuit.cx(0,i)
+ 
+         self._circuit.measure_all()
+diff --git a/src/models/__pycache__/__init__.cpython-38.pyc b/src/models/__pycache__/__init__.cpython-38.pyc
+index f5a0d8c..9643058 100644
+Binary files a/src/models/__pycache__/__init__.cpython-38.pyc and b/src/models/__pycache__/__init__.cpython-38.pyc differ
+diff --git a/src/models/__pycache__/qhn.cpython-38.pyc b/src/models/__pycache__/qhn.cpython-38.pyc
+index 56e2a1f..8b4a754 100644
+Binary files a/src/models/__pycache__/qhn.cpython-38.pyc and b/src/models/__pycache__/qhn.cpython-38.pyc differ
+diff --git a/src/models/qhn.py b/src/models/qhn.py
+index c74fec4..2e08fba 100644
+--- a/src/models/qhn.py
++++ b/src/models/qhn.py
+@@ -27,10 +27,10 @@ class Simple_QHN(nn.Module):
+         self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
+         self.hybrid = Hybrid(
+             params.n_qubits,
+-            qiskit.Aer.get_backend("aer_simulator"),
++            params.backend,
+             100,
+             shift=params.shift,
+-            is_cnot=params.is_cnot,
++            
+         )
+         self.fc3 = nn.Linear(params.n_qubits * 2, 2)
+         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+@@ -55,35 +55,3 @@ class Simple_QHN(nn.Module):
+         return x
+ 
+ 
+-class MNIST_QHN(nn.Module):
+-    def __init__(self, params: Optional[Dict] = None, *args, **kwargs) -> None:
+-        super(MNIST_QHN, self).__init__()
+-        params = params.MNIST_QHN
+-        self.conv1 = nn.Conv2d(1, 6, kernel_size=5)
+-        self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
+-        self.dropout = nn.Dropout2d()
+-        self.fc1 = nn.Linear(256, params.linear_out)
+-        self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
+-        self.hybrid = Hybrid(
+-            params.n_qubits,
+-            backend = "aer_simulator",
+-            shots = params.shots,
+-            shift=params.shift,
+-        )
+-        self.fc3 = nn.Linear(2**params.n_qubits, 10)
+-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+-
+-    def forward(self, x):
+-        x = x.unsqueeze(1)
+-        x = F.relu(self.conv1(x))
+-        x = F.max_pool2d(x, 2)
+-        x = F.relu(self.conv2(x))
+-        x = F.max_pool2d(x, 2)
+-        
+-        x = x.view(x.shape[0],-1)
+-        x = F.relu(self.fc1(x))
+-        x = self.fc2(x)
+-        x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
+-        x = self.hybrid(x).to(self.device)
+-        x = F.softmax(self.fc3(x), dim=1)
+-        return x
+diff --git a/src/runners/__pycache__/base.cpython-38.pyc b/src/runners/__pycache__/base.cpython-38.pyc
+index 6fae27c..b7d08e9 100644
+Binary files a/src/runners/__pycache__/base.cpython-38.pyc and b/src/runners/__pycache__/base.cpython-38.pyc differ
+diff --git a/src/runners/__pycache__/runner.cpython-38.pyc b/src/runners/__pycache__/runner.cpython-38.pyc
+index 9813d76..3792f76 100644
+Binary files a/src/runners/__pycache__/runner.cpython-38.pyc and b/src/runners/__pycache__/runner.cpython-38.pyc differ
+diff --git a/src/runners/runner.py b/src/runners/runner.py
+index 86b61a5..5fb03f3 100644
+--- a/src/runners/runner.py
++++ b/src/runners/runner.py
+@@ -6,8 +6,8 @@ from typing import Optional
+ from copy import deepcopy
+ 
+ from src.runners import Base_Runner
+-from src.data import ROIDataset, SITES_DICT, MNISTDataset
+-from src.datamodules import DataModule, MNISTDataModule
++from src.data import ROIDataset, SITES_DICT
++from src.datamodules import DataModule
+ from src.tasks import ClassificationTask
+ from src.utils import plot_paper
+ from src.callbacks import wandb_callback as wbc
+@@ -177,106 +177,4 @@ class S_Runner(Base_Runner):
+ 
+         return
+ 
+-class MNIST_Runner(Base_Runner):
+-    def get_callbacks(self):
+-        """
+-        Write only callbacks that logger is not necessary
+-        """
+-        checkpoint_callback = ModelCheckpoint(
+-            dirpath=os.path.join(
+-                self.log.checkpoint_path,
+-                self.log.project_name,
+-                f"version{self.version:03d}",
+-            ),
+-            filename=os.path.join(f"model"),
+-            monitor=f"Accuracy/val",
+-            mode="max",
+-            verbose=False,
+-            save_top_k=1,
+-        )
+-
+-        callbacks = dict(
+-            filter(lambda item: item[0].endswith("callback"), vars().items())
+-        ).values()
+-        callbacks = list(callbacks)
+-        return callbacks if len(callbacks) > 0 else None
+-
+-    def run(self, profiler: Optional[str] = None):
+-        os.makedirs(
+-            os.path.join(self.log.checkpoint_path, self.log.project_name), exist_ok=True
+-        )
+-        self.version = len(
+-            os.listdir(os.path.join(self.log.checkpoint_path, self.log.project_name))
+-        )
+-
+-
+-        final_results = list()
+-
+-
+-
+-        dm = self.get_datamodule(dataset=MNISTDataset, datamodule=MNISTDataModule)
+-        model = self.get_network(Task=ClassificationTask)
+-        model.apply(initialize_weights)
+-
+-        trainer = Trainer(
+-            logger=[
+-                TensorBoardLogger(
+-                    save_dir=self.log.log_path,
+-                    name=os.path.join(
+-                        self.log.project_name,
+-                        f"version{self.version:03d}"
+-                    ),
+-                    default_hp_metric=False,
+-                    version=None,
+-                    # log_graph=True, # inavailable due to bug
+-                ),
+-                WandbLogger(
+-                    project=self.log.project_name,
+-                    save_dir=self.log.log_path,
+-                ),
+-            ],
+-            # ! use all gpu
+-            # gpus=-1,
+-            # auto_select_gpus=True,
+-            # ! use 2 gpu
+-            # devices=2,
+-            # accelerator="auto",
+-            # strategy="ddp",
+-            # ! use gpu 0
+-            devices=[0],
+-            accelerator="gpu",
+-            #devices=[self.log.device.gpu],
+-            #accelerator="cpu",
+-            check_val_every_n_epoch=self.log.val_log_freq_epoch,
+-            log_every_n_steps=1,
+-            num_sanity_val_steps=0,
+-            max_epochs=self.log.epoch,
+-            profiler=profiler,
+-            callbacks=[
+-                *self.get_callbacks(),
+-                wbc.WatchModel(),
+-                wbc.LogConfusionMatrix(),
+-                wbc.LogF1PrecRecHeatmap(),
+-                # tbc.WatchModel(),
+-                # tbc.LogConfusionMatrix(),
+-                # tbc.LogF1PrecRecHeatmap(),
+-            ],
+-            precision=self.log.precision,
+-            # gradient_clip_val=0.5,
+-        )
+-        trainer.test_site_prefix = model.prefix
+-        trainer.fit(model, datamodule=dm)
+-        trainer.test(model, datamodule=dm, ckpt_path="best")
+-        final_results.append(
+-            trainer.callback_metrics[f"Accuracy/test"]
+-        )
+-
+-    try:
+-        import wandb
+-
+-        wb_logger = wbc.get_wandb_logger(trainer=Trainer)
+-        
+-    except Exception as e:
+-        print(e)
+-
+     

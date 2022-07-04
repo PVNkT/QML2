@@ -15,6 +15,5 @@ net:
     simulator: aer_simulator
     shift: 0.5
     shots: 100
-    is_cnot: true
     dense_type: 2
 inputs: null

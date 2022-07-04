@@ -1,0 +1,24 @@
+2022-07-04 22:44:16,399 INFO    MainThread:2178 [wandb_setup.py:_flush():75] Loading settings from /home/sol/.config/wandb/settings
+2022-07-04 22:44:16,399 INFO    MainThread:2178 [wandb_setup.py:_flush():75] Loading settings from /home/sol/git/QML2/wandb/settings
+2022-07-04 22:44:16,399 INFO    MainThread:2178 [wandb_setup.py:_flush():75] Loading settings from environment variables: {'_require_service': 'True'}
+2022-07-04 22:44:16,399 INFO    MainThread:2178 [wandb_setup.py:_flush():75] Inferring run settings from compute environment: {'program_relpath': 'run.py', 'program': '/home/sol/git/QML2/run.py'}
+2022-07-04 22:44:16,399 INFO    MainThread:2178 [wandb_init.py:_log_setup():437] Logging user logs to Logs/wandb/run-20220704_224416-2kr91mtl/logs/debug.log
+2022-07-04 22:44:16,399 INFO    MainThread:2178 [wandb_init.py:_log_setup():438] Logging internal logs to Logs/wandb/run-20220704_224416-2kr91mtl/logs/debug-internal.log
+2022-07-04 22:44:16,400 INFO    MainThread:2178 [wandb_init.py:init():471] calling init triggers
+2022-07-04 22:44:16,400 INFO    MainThread:2178 [wandb_init.py:init():474] wandb.init called with sweep_config: {}
+config: {}
+2022-07-04 22:44:16,400 INFO    MainThread:2178 [wandb_init.py:init():524] starting backend
+2022-07-04 22:44:16,401 INFO    MainThread:2178 [backend.py:_multiprocessing_setup():97] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2022-07-04 22:44:16,403 INFO    MainThread:2178 [wandb_init.py:init():533] backend started and connected
+2022-07-04 22:44:16,406 INFO    MainThread:2178 [wandb_init.py:init():597] updated telemetry
+2022-07-04 22:44:16,418 INFO    MainThread:2178 [wandb_init.py:init():628] communicating run to backend with 30 second timeout
+2022-07-04 22:44:17,052 INFO    MainThread:2178 [wandb_run.py:_on_init():1923] communicating current version
+2022-07-04 22:44:17,228 INFO    MainThread:2178 [wandb_run.py:_on_init():1927] got version response upgrade_message: "wandb version 0.12.20 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2022-07-04 22:44:17,228 INFO    MainThread:2178 [wandb_init.py:init():659] starting run threads in backend
+2022-07-04 22:44:18,333 INFO    MainThread:2178 [wandb_run.py:_console_start():1897] atexit reg
+2022-07-04 22:44:18,334 INFO    MainThread:2178 [wandb_run.py:_redirect():1770] redirect: SettingsConsole.WRAP
+2022-07-04 22:44:18,335 INFO    MainThread:2178 [wandb_run.py:_redirect():1807] Wrapping output streams.
+2022-07-04 22:44:18,336 INFO    MainThread:2178 [wandb_run.py:_redirect():1831] Redirects installed.
+2022-07-04 22:44:18,337 INFO    MainThread:2178 [wandb_init.py:init():684] run started, returning control to user process
+2022-07-04 22:44:24,449 WARNING MsgRouterThr:2178 [router.py:message_loop():76] message_loop has been closed

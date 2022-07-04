@@ -35,7 +35,7 @@ class QuantumCircuit:
         for theta, qubit in zip(self.theta, self.all_qubits):
             self._circuit.ry(theta, qubit)
 
-        for i in [2,3,4,5]:
+        for i in range(2, self.n_qubit):
             self._circuit.cx(0,i)
 
         self._circuit.measure_all()

@@ -27,12 +27,12 @@ class Simple_QHN(nn.Module):
         self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
         self.hybrid = Hybrid(
             params.n_qubits,
-            qiskit.Aer.get_backend("aer_simulator"),
+            params.backend,
             100,
             shift=params.shift,
-            is_cnot=params.is_cnot,
+            
         )
-        self.fc3 = nn.Linear(params.n_qubits * 2, 2)
+        self.fc3 = nn.Linear(2**params.n_qubits, 2)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def forward(self, x):
@@ -50,40 +50,7 @@ class Simple_QHN(nn.Module):
         x = self.fc2(x)
         x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
         x = self.hybrid(x).to(self.device)
-        x = torch.cat((x, 1 - x), -1)
         x = F.softmax(self.fc3(x), dim=1)
         return x
 
 
-class MNIST_QHN(nn.Module):
-    def __init__(self, params: Optional[Dict] = None, *args, **kwargs) -> None:
-        super(MNIST_QHN, self).__init__()
-        params = params.MNIST_QHN
-        self.conv1 = nn.Conv2d(1, 6, kernel_size=5)
-        self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
-        self.dropout = nn.Dropout2d()
-        self.fc1 = nn.Linear(256, params.linear_out)
-        self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
-        self.hybrid = Hybrid(
-            params.n_qubits,
-            backend = "aer_simulator",
-            shots = params.shots,
-            shift=params.shift,
-        )
-        self.fc3 = nn.Linear(2**params.n_qubits, 10)
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    def forward(self, x):
-        x = x.unsqueeze(1)
-        x = F.relu(self.conv1(x))
-        x = F.max_pool2d(x, 2)
-        x = F.relu(self.conv2(x))
-        x = F.max_pool2d(x, 2)
-        
-        x = x.view(x.shape[0],-1)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
-        x = self.hybrid(x).to(self.device)
-        x = F.softmax(self.fc3(x), dim=1)
-        return x
