@@ -26,10 +26,10 @@ class Simple_QHN(nn.Module):
         self.fc1 = nn.Linear(256, params.linear_out)
         self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
         self.hybrid = Hybrid(
-            params.n_qubits,
-            params.backend,
-            100,
-            shift=params.shift,
+            n_qubits = params.n_qubits,
+            backend = params.backend,
+            shots = params.shots,
+            shift = params.shift,
             
         )
         self.fc3 = nn.Linear(2**params.n_qubits, 2)

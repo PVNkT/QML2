@@ -33,11 +33,9 @@ network:
   num_classes: 2
   LSTM: ${LSTM}
   Simple_QHN: ${Simple_QHN}
-  hybrid: ${quantum_circuit}
 
 optimizer:
   optimizer: Adam
   lr: 1e-5
-
 
 

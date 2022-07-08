@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from torch.autograd import Function
 import numpy as np
-
+from qiskit import IBMQ
 
 class QuantumCircuit:
     """
@@ -12,69 +12,72 @@ class QuantumCircuit:
     with the quantum circuit
     """
 
-    def __init__(self, n_qubits, backend, shots):
-        # --- Circuit definition ---
-        self._circuit = qiskit.QuantumCircuit(n_qubits)
+    def __init__(self, n_qubits, backend, shots, thetas):
         self.n_qubit = n_qubits
         self.all_qubits = [i for i in range(n_qubits)]
+        deleted = self.all_qubits.copy()
+        self.circuits = []
+        del deleted[1]
+        for theta in thetas:
+        # --- Circuit definition ---
+            circuit = qiskit.QuantumCircuit(n_qubits)
+            circuit.h(deleted)
+                   
+            circuit.cx(0, 1)
+            circuit.barrier()
+            # --- multi qubit ---#
+            for theta, qubit in zip(theta, self.all_qubits):
+                circuit.ry(float(theta), qubit)
+
+            for i in range(2, self.n_qubit):
+                circuit.cx(0,i)
+
+            circuit.measure_all()
+            self.circuits.append(circuit)
         # self.theta = qiskit.circuit.Parameter("theta")
         # --- multi qubit ---#
-        self.theta = [qiskit.circuit.Parameter(f"theta_{i}") for i in self.all_qubits]
+        self.thetas = thetas
 
-        deleted = self.all_qubits.copy()
-        del deleted[1]
-
-        self._circuit.h(deleted)
-        # self._circuit.h(0)
-        
-        
-        self._circuit.cx(0, 1)
-        # self._circuit.ry(self.theta, all_qubits)
-        self._circuit.barrier()
-        # --- multi qubit ---#
-        for theta, qubit in zip(self.theta, self.all_qubits):
-            self._circuit.ry(theta, qubit)
-
-        for i in range(2, self.n_qubit):
-            self._circuit.cx(0,i)
-
-        self._circuit.measure_all()
         # ---------------------------
 
         self.backend = backend
         self.shots = shots
 
-    def run(self, thetas):
-        t_qc = transpile(self._circuit, self.backend)
+    def run(self):
+        
+        #t_qc = transpile(self._circuit, self.backend)
         # qobj = assemble(
         #     t_qc,
         #     shots=self.shots,
         #     parameter_binds=[{self.theta: theta} for theta in thetas],
         # )
         # --- multi qubit -- #
-        qobj = assemble(
-            t_qc,
-            shots=self.shots,
-            parameter_binds=[{self.theta[i]: thetas[i] for i in range(len(thetas))}],
-        )
+        circuit_list = self.circuits
+        print(circuit_list)
+        output_name = [f"i" for i in range(len(self.thetas))]
+        
+        t_qc = transpile(circuit_list, self.backend,output_name=output_name)
+        qobj = assemble(t_qc, shots=self.shots, backend = self.backend)
         job = self.backend.run(qobj)
-        result = job.result().get_counts()
+        results = job.result().get_counts()
 
-        counts = np.array(list(result.values()))
+        #counts = np.array(list(result.values()))
         # states = np.array(list(result.keys())).astype(float)
         # --- multi qubit -- #
         possible_states = []
         for s in range(2**(self.n_qubit)):
             possible_states.append(format(s, "b").zfill(self.n_qubit))
-       
         states = []
-        for i in possible_states:
-            try:
-                states.append(result[i])
-            except:
-                states.append(0)   
-        states = np.array(states, dtype=np.float64)
-         
+        for result in results:
+            state = []
+            for i in possible_states:
+                try:
+                    state.append(result[i])
+                except:
+                    state.append(0)   
+            state = np.array(state, dtype=np.float64)
+            states.append(state)
+        states = np.array(states) 
         return states/self.shots#기댓값을 출력
 
 
@@ -90,11 +93,9 @@ class HybridFunction(Function):
         # expectation_z = ctx.quantum_circuit.run(input[0].tolist())
         # result = torch.tensor([expectation_z])
         # -- multi qubit -- #
-        expectation_z = [
-            torch.Tensor(ctx.quantum_circuit.run(input[i].tolist()))
-            for i in range(input.size(0))
-        ]
-        result = torch.stack(expectation_z, axis=0)
+        result = torch.Tensor(ctx.quantum_circuit.run())
+        
+        #result = torch.stack(expectation_z, axis=0)
         ctx.save_for_backward(input, result)
         
         return result
@@ -135,13 +136,23 @@ class Hybrid(nn.Module):
     """Hybrid quantum - classical layer definition"""
 
     def __init__(
-        self, n_qubits=2, backend="aer_simulator", shots=100, shift=0.6
+        self, input, n_qubits=4, backend="aer_simulator", shots=100, shift=0.6
     ):
         super(Hybrid, self).__init__()
+        IBMQ.load_account()
+        provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
+        backend = provider.get_backend(backend)
         self.quantum_circuit = QuantumCircuit(
-            n_qubits, qiskit.Aer.get_backend(backend), shots
+            n_qubits, backend, shots, thetas = input
         )
         self.shift = shift
+        self.input = input
 
-    def forward(self, input):
-        return HybridFunction.apply(input, self.quantum_circuit, self.shift)
+    def forward(self):
+        return HybridFunction.apply(self.input, self.quantum_circuit, self.shift)
+
+if __name__ == "__main__":
+    print(Hybrid(input = torch.Tensor([[1,2,3,4],[5,6,7,8]]).cuda(),backend="ibmq_lima").forward())
+
+
+

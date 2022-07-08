@@ -6,16 +6,10 @@ LSTM:
   bidirectional: True
 
 Simple_QHN:
-  n_qubits: 2
+  n_qubits: 4
   shift: 0.6
+  shots: 200
   lstm_hidden: 128
   linear_out: 64
   backend: aer_simulator
 
-
-quantum_circuit:
-  n_qubits: 3
-  simulator: aer_simulator
-  shift: 0.5
-  shots: 100
-  dense_type: 2
