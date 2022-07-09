@@ -12,8 +12,8 @@ from src.layers import Hybrid
 class Simple_QHN(nn.Module):
     def __init__(self, params: Optional[Dict] = None, *args, **kwargs) -> None:
         super(Simple_QHN, self).__init__()
-        params = params.Simple_QHN
-        self.lstm_hidden = params.lstm_hidden
+        self.params = params.Simple_QHN
+        self.lstm_hidden = self.params.lstm_hidden
         self.conv1 = nn.Conv1d(116, 6, kernel_size=5)
         self.conv2 = nn.Conv1d(6, 16, kernel_size=5)
         self.dropout = nn.Dropout2d()
@@ -23,16 +23,10 @@ class Simple_QHN(nn.Module):
             num_layers=1,
             bidirectional=True,
         )
-        self.fc1 = nn.Linear(256, params.linear_out)
-        self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
-        self.hybrid = Hybrid(
-            n_qubits = params.n_qubits,
-            backend = params.backend,
-            shots = params.shots,
-            shift = params.shift,
-            
-        )
-        self.fc3 = nn.Linear(2**params.n_qubits, 2)
+        self.fc1 = nn.Linear(256, self.params.linear_out)
+        self.fc2 = nn.Linear(self.params.linear_out, self.params.n_qubits)
+        self.hybrid = Hybrid
+        self.fc3 = nn.Linear(2**self.params.n_qubits, 2)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def forward(self, x):
@@ -49,7 +43,12 @@ class Simple_QHN(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
-        x = self.hybrid(x).to(self.device)
+
+        x = self.hybrid(input = x, 
+            n_qubits = self.params.n_qubits,
+            backend = self.params.backend,
+            shots = self.params.shots,
+            shift = self.params.shift,).forward().to(self.device)
         x = F.softmax(self.fc3(x), dim=1)
         return x
 

@@ -1,0 +1,231 @@
+diff --git a/Configs/models.yaml b/Configs/models.yaml
+index 9609ff5..ea32af3 100644
+--- a/Configs/models.yaml
++++ b/Configs/models.yaml
+@@ -11,5 +11,5 @@ Simple_QHN:
+   shots: 200
+   lstm_hidden: 128
+   linear_out: 64
+-  backend: aer_simulator
++  backend: ibmq_qasm_simulator
+ 
+diff --git a/Logs/wandb/debug-internal.log b/Logs/wandb/debug-internal.log
+index beb8050..df54833 120000
+--- a/Logs/wandb/debug-internal.log
++++ b/Logs/wandb/debug-internal.log
+@@ -1 +1 @@
+-run-20220708_113111-1fo60zo6/logs/debug-internal.log
+\ No newline at end of file
++run-20220708_230015-1wd2gk6j/logs/debug-internal.log
+\ No newline at end of file
+diff --git a/Logs/wandb/debug.log b/Logs/wandb/debug.log
+index 07f54e4..ce1e9b3 120000
+--- a/Logs/wandb/debug.log
++++ b/Logs/wandb/debug.log
+@@ -1 +1 @@
+-run-20220708_113111-1fo60zo6/logs/debug.log
+\ No newline at end of file
++run-20220708_230015-1wd2gk6j/logs/debug.log
+\ No newline at end of file
+diff --git a/Logs/wandb/latest-run b/Logs/wandb/latest-run
+index da32ff5..9703c7a 120000
+--- a/Logs/wandb/latest-run
++++ b/Logs/wandb/latest-run
+@@ -1 +1 @@
+-run-20220708_113111-1fo60zo6
+\ No newline at end of file
++run-20220708_230015-1wd2gk6j
+\ No newline at end of file
+diff --git a/run.py b/run.py
+index fae2612..ec53668 100644
+--- a/run.py
++++ b/run.py
+@@ -23,4 +23,5 @@ def main(cfg=OmegaConf.load(CONFIG_DIR / "config.yaml")) -> None:
+ 
+ if __name__ == "__main__":
+     #IBMQ.save_account("39e7cec1ae590142d86caa525b2bf85bc5fbc8893ba6b8a8bd7de88582afdff10c0ec41104c54851efe419e0cf125528184d9c01091878a8617ca41cb2754176")
++    IBMQ.load_account()
+     main()
+diff --git a/src/layers/__pycache__/quantum_layers.cpython-38.pyc b/src/layers/__pycache__/quantum_layers.cpython-38.pyc
+index b960e6c..3212571 100644
+Binary files a/src/layers/__pycache__/quantum_layers.cpython-38.pyc and b/src/layers/__pycache__/quantum_layers.cpython-38.pyc differ
+diff --git a/src/layers/quantum_layers.py b/src/layers/quantum_layers.py
+index a79f255..5f8cc9c 100644
+--- a/src/layers/quantum_layers.py
++++ b/src/layers/quantum_layers.py
+@@ -18,6 +18,9 @@ class QuantumCircuit:
+         deleted = self.all_qubits.copy()
+         self.circuits = []
+         del deleted[1]
++        self.thetas = thetas
++        self.backend = backend
++        self.shots = shots
+         for theta in thetas:
+         # --- Circuit definition ---
+             circuit = qiskit.QuantumCircuit(n_qubits)
+@@ -26,8 +29,8 @@ class QuantumCircuit:
+             circuit.cx(0, 1)
+             circuit.barrier()
+             # --- multi qubit ---#
+-            for theta, qubit in zip(theta, self.all_qubits):
+-                circuit.ry(float(theta), qubit)
++            for j in range(len(theta)):
++                circuit.ry(float(theta[j]), j)
+ 
+             for i in range(2, self.n_qubit):
+                 circuit.cx(0,i)
+@@ -36,12 +39,11 @@ class QuantumCircuit:
+             self.circuits.append(circuit)
+         # self.theta = qiskit.circuit.Parameter("theta")
+         # --- multi qubit ---#
+-        self.thetas = thetas
++        
+ 
+         # ---------------------------
+ 
+-        self.backend = backend
+-        self.shots = shots
++        
+ 
+     def run(self):
+         
+@@ -53,7 +55,6 @@ class QuantumCircuit:
+         # )
+         # --- multi qubit -- #
+         circuit_list = self.circuits
+-        print(circuit_list)
+         output_name = [f"i" for i in range(len(self.thetas))]
+         
+         t_qc = transpile(circuit_list, self.backend,output_name=output_name)
+@@ -85,15 +86,18 @@ class HybridFunction(Function):
+     """Hybrid quantum - classical function definition"""
+ 
+     @staticmethod
+-    def forward(ctx, input, quantum_circuit, shift):
++    def forward(ctx, n_qubits, backend, shots, input, quantum_circuit, shift):
+         """Forward pass computation"""
+         ctx.shift = shift
++        ctx.n_qubits = n_qubits
++        ctx.backend = backend
++        ctx.shots = shots
+         ctx.quantum_circuit = quantum_circuit
+ 
+         # expectation_z = ctx.quantum_circuit.run(input[0].tolist())
+         # result = torch.tensor([expectation_z])
+         # -- multi qubit -- #
+-        result = torch.Tensor(ctx.quantum_circuit.run())
++        result = torch.Tensor(ctx.quantum_circuit(n_qubits, backend, shots, thetas = input).run())
+         
+         #result = torch.stack(expectation_z, axis=0)
+         ctx.save_for_backward(input, result)
+@@ -109,27 +113,23 @@ class HybridFunction(Function):
+ 
+         shift_right = input_list + np.ones(input_list.shape) * ctx.shift
+         shift_left = input_list - np.ones(input_list.shape) * ctx.shift
++        
++        expectation_right = ctx.quantum_circuit(ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_right).run()
++        expectation_left = ctx.quantum_circuit(ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_left).run()
+ 
+-        gradients = []
+-        for i in range(len(input_list)):
+-            expectation_right = ctx.quantum_circuit.run(shift_right[i])
+-            expectation_left = ctx.quantum_circuit.run(shift_left[i])
++        gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(np.array([expectation_left]))
+ 
+-            gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(
+-                np.array([expectation_left])
+-            )
+-            gradients.append(gradient)
+-        gradients = torch.concat(gradients, axis=0)
+ 
+         possible_states = []
+         for s in range(2**(len(input[0]))):
+             possible_states.append(np.array(list(format(s, "b").zfill(len(input[0]))),np.float64))
+         possible_states=np.array(possible_states)
+         
+-        grad = gradients * grad_output
+-        grad = torch.matmul(grad.type(torch.FloatTensor), torch.FloatTensor(possible_states))
+-        
+-        return grad.to(device), None, None
++        grad = gradient * grad_output
++        print(grad, possible_states)
++        grad = torch.matmul(grad.type(torch.FloatTensor), torch.FloatTensor(possible_states)).squeeze()
++        print(grad)
++        return None, None, None, grad.to(device), None, None
+ 
+ 
+ class Hybrid(nn.Module):
+@@ -141,15 +141,15 @@ class Hybrid(nn.Module):
+         super(Hybrid, self).__init__()
+         IBMQ.load_account()
+         provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
+-        backend = provider.get_backend(backend)
+-        self.quantum_circuit = QuantumCircuit(
+-            n_qubits, backend, shots, thetas = input
+-        )
++        self.backend = provider.get_backend(backend)
++        self.quantum_circuit = QuantumCircuit
+         self.shift = shift
+         self.input = input
++        self.n_qubits = n_qubits
++        self.shots = shots
+ 
+     def forward(self):
+-        return HybridFunction.apply(self.input, self.quantum_circuit, self.shift)
++        return HybridFunction.apply(self.n_qubits, self.backend, self.shots, self.input, self.quantum_circuit, self.shift, )
+ 
+ if __name__ == "__main__":
+     print(Hybrid(input = torch.Tensor([[1,2,3,4],[5,6,7,8]]).cuda(),backend="ibmq_lima").forward())
+diff --git a/src/models/__pycache__/qhn.cpython-38.pyc b/src/models/__pycache__/qhn.cpython-38.pyc
+index 0930137..16192a7 100644
+Binary files a/src/models/__pycache__/qhn.cpython-38.pyc and b/src/models/__pycache__/qhn.cpython-38.pyc differ
+diff --git a/src/models/qhn.py b/src/models/qhn.py
+index 2bc3845..4ae50b1 100644
+--- a/src/models/qhn.py
++++ b/src/models/qhn.py
+@@ -12,8 +12,8 @@ from src.layers import Hybrid
+ class Simple_QHN(nn.Module):
+     def __init__(self, params: Optional[Dict] = None, *args, **kwargs) -> None:
+         super(Simple_QHN, self).__init__()
+-        params = params.Simple_QHN
+-        self.lstm_hidden = params.lstm_hidden
++        self.params = params.Simple_QHN
++        self.lstm_hidden = self.params.lstm_hidden
+         self.conv1 = nn.Conv1d(116, 6, kernel_size=5)
+         self.conv2 = nn.Conv1d(6, 16, kernel_size=5)
+         self.dropout = nn.Dropout2d()
+@@ -23,16 +23,10 @@ class Simple_QHN(nn.Module):
+             num_layers=1,
+             bidirectional=True,
+         )
+-        self.fc1 = nn.Linear(256, params.linear_out)
+-        self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
+-        self.hybrid = Hybrid(
+-            n_qubits = params.n_qubits,
+-            backend = params.backend,
+-            shots = params.shots,
+-            shift = params.shift,
+-            
+-        )
+-        self.fc3 = nn.Linear(2**params.n_qubits, 2)
++        self.fc1 = nn.Linear(256, self.params.linear_out)
++        self.fc2 = nn.Linear(self.params.linear_out, self.params.n_qubits)
++        self.hybrid = Hybrid
++        self.fc3 = nn.Linear(2**self.params.n_qubits, 2)
+         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+ 
+     def forward(self, x):
+@@ -49,7 +43,12 @@ class Simple_QHN(nn.Module):
+         x = F.relu(self.fc1(x))
+         x = self.fc2(x)
+         x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
+-        x = self.hybrid(x).to(self.device)
++
++        x = self.hybrid(input = x, 
++            n_qubits = self.params.n_qubits,
++            backend = self.params.backend,
++            shots = self.params.shots,
++            shift = self.params.shift,).forward().to(self.device)
+         x = F.softmax(self.fc3(x), dim=1)
+         return x
+ 

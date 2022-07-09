@@ -11,5 +11,5 @@ Simple_QHN:
   shots: 200
   lstm_hidden: 128
   linear_out: 64
-  backend: aer_simulator
+  backend: ibmq_qasm_simulator
 

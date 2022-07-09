@@ -1,0 +1,27 @@
+{
+    "os": "Linux-5.10.16.3-microsoft-standard-WSL2-x86_64-with-glibc2.29",
+    "python": "3.8.10",
+    "heartbeatAt": "2022-07-08T01:25:00.243380",
+    "startedAt": "2022-07-08T01:24:58.147055",
+    "docker": null,
+    "gpu": "NVIDIA GeForce GTX 1650",
+    "gpu_count": 1,
+    "cpu_count": 8,
+    "cuda": null,
+    "args": [
+        "log.project_name=QML-Real-Machine",
+        "Simple_QHN.backend=ibmq_belem"
+    ],
+    "state": "running",
+    "program": "run.py",
+    "codePath": "run.py",
+    "git": {
+        "remote": "https://github.com/PVNkT/QML2.git",
+        "commit": "beb71bd9606ac225cfd064fdd53acff4952e81e9"
+    },
+    "email": "3031902@gmail.com",
+    "root": "/home/sol/git/QML2",
+    "host": "DESKTOP-HFMS9NT",
+    "username": "sol",
+    "executable": "/usr/bin/python3"
+}

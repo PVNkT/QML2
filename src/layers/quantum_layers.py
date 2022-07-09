@@ -17,31 +17,35 @@ class QuantumCircuit:
         self.all_qubits = [i for i in range(n_qubits)]
         deleted = self.all_qubits.copy()
         self.circuits = []
-        del deleted[1]
+        del deleted[2]
+        self.thetas = thetas
+        self.backend = backend
+        self.shots = shots
         for theta in thetas:
         # --- Circuit definition ---
             circuit = qiskit.QuantumCircuit(n_qubits)
             circuit.h(deleted)
                    
+            circuit.cx(1, 2)
             circuit.cx(0, 1)
+            circuit.cx(2, 3)
             circuit.barrier()
             # --- multi qubit ---#
-            for theta, qubit in zip(theta, self.all_qubits):
-                circuit.ry(float(theta), qubit)
+            for j in range(len(theta)):
+                circuit.ry(float(theta[j]), j)
 
-            for i in range(2, self.n_qubit):
-                circuit.cx(0,i)
+            for i in [0,3]:
+                circuit.cx(1,i)
 
             circuit.measure_all()
             self.circuits.append(circuit)
         # self.theta = qiskit.circuit.Parameter("theta")
         # --- multi qubit ---#
-        self.thetas = thetas
+        
 
         # ---------------------------
 
-        self.backend = backend
-        self.shots = shots
+        
 
     def run(self):
         
@@ -53,7 +57,6 @@ class QuantumCircuit:
         # )
         # --- multi qubit -- #
         circuit_list = self.circuits
-        print(circuit_list)
         output_name = [f"i" for i in range(len(self.thetas))]
         
         t_qc = transpile(circuit_list, self.backend,output_name=output_name)
@@ -85,15 +88,18 @@ class HybridFunction(Function):
     """Hybrid quantum - classical function definition"""
 
     @staticmethod
-    def forward(ctx, input, quantum_circuit, shift):
+    def forward(ctx, n_qubits, backend, shots, input, quantum_circuit, shift):
         """Forward pass computation"""
         ctx.shift = shift
+        ctx.n_qubits = n_qubits
+        ctx.backend = backend
+        ctx.shots = shots
         ctx.quantum_circuit = quantum_circuit
 
         # expectation_z = ctx.quantum_circuit.run(input[0].tolist())
         # result = torch.tensor([expectation_z])
         # -- multi qubit -- #
-        result = torch.Tensor(ctx.quantum_circuit.run())
+        result = torch.Tensor(ctx.quantum_circuit(n_qubits, backend, shots, thetas = input).run())
         
         #result = torch.stack(expectation_z, axis=0)
         ctx.save_for_backward(input, result)
@@ -109,27 +115,21 @@ class HybridFunction(Function):
 
         shift_right = input_list + np.ones(input_list.shape) * ctx.shift
         shift_left = input_list - np.ones(input_list.shape) * ctx.shift
+        
+        expectation_right = ctx.quantum_circuit(ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_right).run()
+        expectation_left = ctx.quantum_circuit(ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_left).run()
 
-        gradients = []
-        for i in range(len(input_list)):
-            expectation_right = ctx.quantum_circuit.run(shift_right[i])
-            expectation_left = ctx.quantum_circuit.run(shift_left[i])
+        gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(np.array([expectation_left]))
 
-            gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(
-                np.array([expectation_left])
-            )
-            gradients.append(gradient)
-        gradients = torch.concat(gradients, axis=0)
 
         possible_states = []
         for s in range(2**(len(input[0]))):
             possible_states.append(np.array(list(format(s, "b").zfill(len(input[0]))),np.float64))
         possible_states=np.array(possible_states)
         
-        grad = gradients * grad_output
-        grad = torch.matmul(grad.type(torch.FloatTensor), torch.FloatTensor(possible_states))
-        
-        return grad.to(device), None, None
+        grad = gradient * grad_output
+        grad = torch.matmul(grad.type(torch.FloatTensor), torch.FloatTensor(possible_states)).squeeze()
+        return None, None, None, grad.to(device), None, None
 
 
 class Hybrid(nn.Module):
@@ -139,17 +139,16 @@ class Hybrid(nn.Module):
         self, input, n_qubits=4, backend="aer_simulator", shots=100, shift=0.6
     ):
         super(Hybrid, self).__init__()
-        IBMQ.load_account()
         provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
-        backend = provider.get_backend(backend)
-        self.quantum_circuit = QuantumCircuit(
-            n_qubits, backend, shots, thetas = input
-        )
+        self.backend = provider.get_backend(backend)
+        self.quantum_circuit = QuantumCircuit
         self.shift = shift
         self.input = input
+        self.n_qubits = n_qubits
+        self.shots = shots
 
     def forward(self):
-        return HybridFunction.apply(self.input, self.quantum_circuit, self.shift)
+        return HybridFunction.apply(self.n_qubits, self.backend, self.shots, self.input, self.quantum_circuit, self.shift, )
 
 if __name__ == "__main__":
     print(Hybrid(input = torch.Tensor([[1,2,3,4],[5,6,7,8]]).cuda(),backend="ibmq_lima").forward())

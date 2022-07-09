@@ -1,0 +1,226 @@
+diff --git a/Configs/config.yaml b/Configs/config.yaml
+index aa00027..67602ec 100644
+--- a/Configs/config.yaml
++++ b/Configs/config.yaml
+@@ -33,11 +33,9 @@ network:
+   num_classes: 2
+   LSTM: ${LSTM}
+   Simple_QHN: ${Simple_QHN}
+-  hybrid: ${quantum_circuit}
+ 
+ optimizer:
+   optimizer: Adam
+   lr: 1e-5
+ 
+ 
+-
+diff --git a/Configs/models.yaml b/Configs/models.yaml
+index e561fb7..1e9b952 100644
+--- a/Configs/models.yaml
++++ b/Configs/models.yaml
+@@ -8,14 +8,8 @@ LSTM:
+ Simple_QHN:
+   n_qubits: 2
+   shift: 0.6
++  shots: 200
+   lstm_hidden: 128
+   linear_out: 64
+   backend: aer_simulator
+ 
+-
+-quantum_circuit:
+-  n_qubits: 3
+-  simulator: aer_simulator
+-  shift: 0.5
+-  shots: 100
+-  dense_type: 2
+\ No newline at end of file
+diff --git a/Logs/wandb/debug-internal.log b/Logs/wandb/debug-internal.log
+index 9c98851..114ad5c 120000
+--- a/Logs/wandb/debug-internal.log
++++ b/Logs/wandb/debug-internal.log
+@@ -1 +1 @@
+-run-20220704_225542-2b98ixbg/logs/debug-internal.log
+\ No newline at end of file
++run-20220708_105316-7r9p9vpr/logs/debug-internal.log
+\ No newline at end of file
+diff --git a/Logs/wandb/debug.log b/Logs/wandb/debug.log
+index a6a3aab..b9d97f2 120000
+--- a/Logs/wandb/debug.log
++++ b/Logs/wandb/debug.log
+@@ -1 +1 @@
+-run-20220704_225542-2b98ixbg/logs/debug.log
+\ No newline at end of file
++run-20220708_105316-7r9p9vpr/logs/debug.log
+\ No newline at end of file
+diff --git a/Logs/wandb/latest-run b/Logs/wandb/latest-run
+index a06b789..b874d3b 120000
+--- a/Logs/wandb/latest-run
++++ b/Logs/wandb/latest-run
+@@ -1 +1 @@
+-run-20220704_225542-2b98ixbg
+\ No newline at end of file
++run-20220708_105316-7r9p9vpr
+\ No newline at end of file
+diff --git a/run.py b/run.py
+index 69d3f58..eb6b8ab 100644
+--- a/run.py
++++ b/run.py
+@@ -1,6 +1,6 @@
+ from omegaconf import OmegaConf
+ from pathlib import Path
+-
++from qiskit import IBMQ
+ from src.runners import S_Runner
+ 
+ CONFIG_DIR = Path("Configs")
+@@ -22,4 +22,6 @@ def main(cfg=OmegaConf.load(CONFIG_DIR / "config.yaml")) -> None:
+ 
+ 
+ if __name__ == "__main__":
++    IBMQ.save_account("39e7cec1ae590142d86caa525b2bf85bc5fbc8893ba6b8a8bd7de88582afdff10c0ec41104c54851efe419e0cf125528184d9c01091878a8617ca41cb2754176")
++    IBMQ.providers()
+     main()
+diff --git a/src/data/__pycache__/data_etl.cpython-38.pyc b/src/data/__pycache__/data_etl.cpython-38.pyc
+index 74d86f0..b2c51c9 100644
+Binary files a/src/data/__pycache__/data_etl.cpython-38.pyc and b/src/data/__pycache__/data_etl.cpython-38.pyc differ
+diff --git a/src/data/__pycache__/loader.cpython-38.pyc b/src/data/__pycache__/loader.cpython-38.pyc
+index dbfcf4d..7e47391 100644
+Binary files a/src/data/__pycache__/loader.cpython-38.pyc and b/src/data/__pycache__/loader.cpython-38.pyc differ
+diff --git a/src/data/__pycache__/sampling.cpython-38.pyc b/src/data/__pycache__/sampling.cpython-38.pyc
+index 154d091..206bfbf 100644
+Binary files a/src/data/__pycache__/sampling.cpython-38.pyc and b/src/data/__pycache__/sampling.cpython-38.pyc differ
+diff --git a/src/datamodules/__pycache__/datamodule.cpython-38.pyc b/src/datamodules/__pycache__/datamodule.cpython-38.pyc
+index fbf92f2..6ad4afb 100644
+Binary files a/src/datamodules/__pycache__/datamodule.cpython-38.pyc and b/src/datamodules/__pycache__/datamodule.cpython-38.pyc differ
+diff --git a/src/layers/__pycache__/quantum_layers.cpython-38.pyc b/src/layers/__pycache__/quantum_layers.cpython-38.pyc
+index 1404049..365eac3 100644
+Binary files a/src/layers/__pycache__/quantum_layers.cpython-38.pyc and b/src/layers/__pycache__/quantum_layers.cpython-38.pyc differ
+diff --git a/src/layers/quantum_layers.py b/src/layers/quantum_layers.py
+index 4dfccfa..a66ebe5 100644
+--- a/src/layers/quantum_layers.py
++++ b/src/layers/quantum_layers.py
+@@ -4,7 +4,7 @@ import torch
+ from torch import nn
+ from torch.autograd import Function
+ import numpy as np
+-
++from qiskit import IBMQ
+ 
+ class QuantumCircuit:
+     """
+@@ -45,6 +45,7 @@ class QuantumCircuit:
+         self.shots = shots
+ 
+     def run(self, thetas):
++        
+         t_qc = transpile(self._circuit, self.backend)
+         # qobj = assemble(
+         #     t_qc,
+@@ -52,29 +53,35 @@ class QuantumCircuit:
+         #     parameter_binds=[{self.theta: theta} for theta in thetas],
+         # )
+         # --- multi qubit -- #
+-        qobj = assemble(
+-            t_qc,
+-            shots=self.shots,
+-            parameter_binds=[{self.theta[i]: thetas[i] for i in range(len(thetas))}],
+-        )
+-        job = self.backend.run(qobj)
+-        result = job.result().get_counts()
++        circuit_list = []
++        for theta in thetas:
++            qobj = assemble(
++                t_qc,
++                shots=self.shots,
++                parameter_binds=[{self.theta[i]: theta[i] for i in range(len(theta))}],
++            )
++            circuit_list.append(qobj)
++
++        job = qiskit.execute(circuit_list, self.backend)
++        results = job.result().get_counts()
+ 
+-        counts = np.array(list(result.values()))
++        #counts = np.array(list(result.values()))
+         # states = np.array(list(result.keys())).astype(float)
+         # --- multi qubit -- #
+         possible_states = []
+         for s in range(2**(self.n_qubit)):
+             possible_states.append(format(s, "b").zfill(self.n_qubit))
+-       
+         states = []
+-        for i in possible_states:
+-            try:
+-                states.append(result[i])
+-            except:
+-                states.append(0)   
+-        states = np.array(states, dtype=np.float64)
+-         
++        for result in results:
++            state = []
++            for i in possible_states:
++                try:
++                    state.append(result[i])
++                except:
++                    state.append(0)   
++            state = np.array(state, dtype=np.float64)
++            states.append(state)
++        states = np.array(states) 
+         return states/self.shots#기댓값을 출력
+ 
+ 
+@@ -90,11 +97,9 @@ class HybridFunction(Function):
+         # expectation_z = ctx.quantum_circuit.run(input[0].tolist())
+         # result = torch.tensor([expectation_z])
+         # -- multi qubit -- #
+-        expectation_z = [
+-            torch.Tensor(ctx.quantum_circuit.run(input[i].tolist()))
+-            for i in range(input.size(0))
+-        ]
+-        result = torch.stack(expectation_z, axis=0)
++        result = torch.Tensor(ctx.quantum_circuit.run(input))
++        
++        #result = torch.stack(expectation_z, axis=0)
+         ctx.save_for_backward(input, result)
+         
+         return result
+@@ -138,8 +143,10 @@ class Hybrid(nn.Module):
+         self, n_qubits=2, backend="aer_simulator", shots=100, shift=0.6
+     ):
+         super(Hybrid, self).__init__()
++        provider = IBMQ.load_account()
++        backend = provider.get_backend(backend)
+         self.quantum_circuit = QuantumCircuit(
+-            n_qubits, qiskit.Aer.get_backend(backend), shots
++            n_qubits, backend, shots
+         )
+         self.shift = shift
+ 
+diff --git a/src/models/__pycache__/qhn.cpython-38.pyc b/src/models/__pycache__/qhn.cpython-38.pyc
+index 7e03f2f..0930137 100644
+Binary files a/src/models/__pycache__/qhn.cpython-38.pyc and b/src/models/__pycache__/qhn.cpython-38.pyc differ
+diff --git a/src/models/qhn.py b/src/models/qhn.py
+index f9da96f..2bc3845 100644
+--- a/src/models/qhn.py
++++ b/src/models/qhn.py
+@@ -26,10 +26,10 @@ class Simple_QHN(nn.Module):
+         self.fc1 = nn.Linear(256, params.linear_out)
+         self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
+         self.hybrid = Hybrid(
+-            params.n_qubits,
+-            params.backend,
+-            100,
+-            shift=params.shift,
++            n_qubits = params.n_qubits,
++            backend = params.backend,
++            shots = params.shots,
++            shift = params.shift,
+             
+         )
+         self.fc3 = nn.Linear(2**params.n_qubits, 2)
+diff --git a/src/runners/__pycache__/base.cpython-38.pyc b/src/runners/__pycache__/base.cpython-38.pyc
+index 3fa50b5..1159418 100644
+Binary files a/src/runners/__pycache__/base.cpython-38.pyc and b/src/runners/__pycache__/base.cpython-38.pyc differ
+diff --git a/src/runners/__pycache__/runner.cpython-38.pyc b/src/runners/__pycache__/runner.cpython-38.pyc
+index 577400b..a0a9e69 100644
+Binary files a/src/runners/__pycache__/runner.cpython-38.pyc and b/src/runners/__pycache__/runner.cpython-38.pyc differ

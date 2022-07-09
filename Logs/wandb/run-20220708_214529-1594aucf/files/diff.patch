@@ -1,0 +1,97 @@
+diff --git a/Logs/wandb/debug-internal.log b/Logs/wandb/debug-internal.log
+index beb8050..f095cd2 120000
+--- a/Logs/wandb/debug-internal.log
++++ b/Logs/wandb/debug-internal.log
+@@ -1 +1 @@
+-run-20220708_113111-1fo60zo6/logs/debug-internal.log
+\ No newline at end of file
++run-20220708_214529-1594aucf/logs/debug-internal.log
+\ No newline at end of file
+diff --git a/Logs/wandb/debug.log b/Logs/wandb/debug.log
+index 07f54e4..5ee6fa3 120000
+--- a/Logs/wandb/debug.log
++++ b/Logs/wandb/debug.log
+@@ -1 +1 @@
+-run-20220708_113111-1fo60zo6/logs/debug.log
+\ No newline at end of file
++run-20220708_214529-1594aucf/logs/debug.log
+\ No newline at end of file
+diff --git a/Logs/wandb/latest-run b/Logs/wandb/latest-run
+index da32ff5..c73ba75 120000
+--- a/Logs/wandb/latest-run
++++ b/Logs/wandb/latest-run
+@@ -1 +1 @@
+-run-20220708_113111-1fo60zo6
+\ No newline at end of file
++run-20220708_214529-1594aucf
+\ No newline at end of file
+diff --git a/src/layers/__pycache__/quantum_layers.cpython-38.pyc b/src/layers/__pycache__/quantum_layers.cpython-38.pyc
+index b960e6c..8b99fa8 100644
+Binary files a/src/layers/__pycache__/quantum_layers.cpython-38.pyc and b/src/layers/__pycache__/quantum_layers.cpython-38.pyc differ
+diff --git a/src/layers/quantum_layers.py b/src/layers/quantum_layers.py
+index a79f255..365bd38 100644
+--- a/src/layers/quantum_layers.py
++++ b/src/layers/quantum_layers.py
+@@ -112,8 +112,8 @@ class HybridFunction(Function):
+ 
+         gradients = []
+         for i in range(len(input_list)):
+-            expectation_right = ctx.quantum_circuit.run(shift_right[i])
+-            expectation_left = ctx.quantum_circuit.run(shift_left[i])
++            expectation_right = ctx.quantum_circuit(shift_right[i]).run()
++            expectation_left = ctx.quantum_circuit(shift_left[i]).run()
+ 
+             gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(
+                 np.array([expectation_left])
+diff --git a/src/models/__pycache__/qhn.cpython-38.pyc b/src/models/__pycache__/qhn.cpython-38.pyc
+index 0930137..c712a7d 100644
+Binary files a/src/models/__pycache__/qhn.cpython-38.pyc and b/src/models/__pycache__/qhn.cpython-38.pyc differ
+diff --git a/src/models/qhn.py b/src/models/qhn.py
+index 2bc3845..a72d20a 100644
+--- a/src/models/qhn.py
++++ b/src/models/qhn.py
+@@ -12,8 +12,8 @@ from src.layers import Hybrid
+ class Simple_QHN(nn.Module):
+     def __init__(self, params: Optional[Dict] = None, *args, **kwargs) -> None:
+         super(Simple_QHN, self).__init__()
+-        params = params.Simple_QHN
+-        self.lstm_hidden = params.lstm_hidden
++        self.params = params.Simple_QHN
++        self.lstm_hidden = self.params.lstm_hidden
+         self.conv1 = nn.Conv1d(116, 6, kernel_size=5)
+         self.conv2 = nn.Conv1d(6, 16, kernel_size=5)
+         self.dropout = nn.Dropout2d()
+@@ -23,16 +23,10 @@ class Simple_QHN(nn.Module):
+             num_layers=1,
+             bidirectional=True,
+         )
+-        self.fc1 = nn.Linear(256, params.linear_out)
+-        self.fc2 = nn.Linear(params.linear_out, params.n_qubits)
+-        self.hybrid = Hybrid(
+-            n_qubits = params.n_qubits,
+-            backend = params.backend,
+-            shots = params.shots,
+-            shift = params.shift,
+-            
+-        )
+-        self.fc3 = nn.Linear(2**params.n_qubits, 2)
++        self.fc1 = nn.Linear(256, self.params.linear_out)
++        self.fc2 = nn.Linear(self.params.linear_out, self.params.n_qubits)
++        self.hybrid = Hybrid
++        self.fc3 = nn.Linear(2**self.params.n_qubits, 2)
+         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+ 
+     def forward(self, x):
+@@ -49,7 +43,11 @@ class Simple_QHN(nn.Module):
+         x = F.relu(self.fc1(x))
+         x = self.fc2(x)
+         x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
+-        x = self.hybrid(x).to(self.device)
++        x = self.hybrid(input = x, 
++            n_qubits = self.params.n_qubits,
++            backend = self.params.backend,
++            shots = self.params.shots,
++            shift = self.params.shift,).to(self.device)
+         x = F.softmax(self.fc3(x), dim=1)
+         return x
+ 
