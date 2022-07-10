@@ -5,12 +5,29 @@ from typing import Union, List
 import torch
 from torch.utils.data import Dataset
 
-from src.data import Load, SITES_DICT, Load_MNIST
+from src.data import Load, SITES_DICT, Load_MNIST, LOSOLoad
 
   
 class ROIDataset(Dataset):
-    def __init__( self, site: Union[List, str]) -> None:
+    def __init__( self, is_train: bool, site: Union[List, str]) -> None:
         load = Load()
+        self.data, self.labels = load.loadSiteData(is_train, site)
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, index: int):
+        """
+        data shape: (116, time series)
+        label: not one hot. 0 or 1.
+        """
+        data = self.data[index]
+        label = self.labels[index]
+        return data, label
+
+class LOSODataset(Dataset):
+    def __init__( self, site: Union[List, str]) -> None:
+        load = LOSOLoad()
         self.data, self.labels = load.loadSiteData(site)
 
     def __len__(self):
@@ -25,6 +42,23 @@ class ROIDataset(Dataset):
         label = self.labels[index]
         return data, label
 
+class MNISTDataset(Dataset):
+    def __init__(self, n_samples: int, is_train: Boolean) -> None:
+        Load = Load_MNIST(is_train)
+        if n_samples >0:
+            self.data = Load.get_samples(n_samples=n_samples).data
+            self.labels = Load.get_samples(n_samples=n_samples).targets  
+        else:  
+            self.data = Load.dataset.data
+            self.labels = Load.dataset.targets
+
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index: int):
+        data = self.data[index]
+        label = self.labels[index]
+        return data, label
 
 def pad_tensor(vec: torch.Tensor, pad: int, dim: int) -> torch.Tensor:
     """
@@ -53,23 +87,6 @@ def collate_fn(batch):
     ys = torch.LongTensor(ys)
     return (xs, ys)
 
-class MNISTDataset(Dataset):
-    def __init__(self, n_samples: int, is_train: Boolean) -> None:
-        Load = Load_MNIST(is_train)
-        if n_samples >0:
-            self.data = Load.get_samples(n_samples=n_samples).data
-            self.labels = Load.get_samples(n_samples=n_samples).targets  
-        else:  
-            self.data = Load.dataset.data
-            self.labels = Load.dataset.targets
-
-    def __len__(self):
-        return len(self.labels)
-    
-    def __getitem__(self, index: int):
-        data = self.data[index]
-        label = self.labels[index]
-        return data, label
 
 
 

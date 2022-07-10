@@ -59,13 +59,14 @@ class Simple_QHN(nn.Module):
             x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
             if self.simulation:
                 x = self.hybrid(x).to(self.device)
+   
             else: 
                 x = self.hybrid(input = x, 
                     n_qubits = self.params.n_qubits,
                     backend = self.params.backend,
                     shots = self.params.shots,
                     shift = self.params.shift,).forward().to(self.device)
-            self.fc3(x)
+            x = self.fc3(x)
         x = F.softmax(x, dim=1)
         return x
 

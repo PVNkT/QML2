@@ -11,6 +11,6 @@ Simple_QHN:
   shots: 200
   lstm_hidden: 128
   linear_out: 64
-  backend: ibm_lagos
+  backend: aer_simulator
   no_quantum: False
 
