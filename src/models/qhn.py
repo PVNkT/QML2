@@ -6,13 +6,14 @@ import torch.nn.functional as F
 from typing import Optional, Dict
 
 
-from src.layers import Hybrid
+from src.layers import Hybrid, Aer_Hybrid
 
 
 class Simple_QHN(nn.Module):
     def __init__(self, params: Optional[Dict] = None, *args, **kwargs) -> None:
         super(Simple_QHN, self).__init__()
         self.params = params.Simple_QHN
+        self.no_quantum = self.params.no_quantum
         self.lstm_hidden = self.params.lstm_hidden
         self.conv1 = nn.Conv1d(116, 6, kernel_size=5)
         self.conv2 = nn.Conv1d(6, 16, kernel_size=5)
@@ -25,8 +26,18 @@ class Simple_QHN(nn.Module):
         )
         self.fc1 = nn.Linear(256, self.params.linear_out)
         self.fc2 = nn.Linear(self.params.linear_out, self.params.n_qubits)
-        self.hybrid = Hybrid
+        if self.params.backend[0:3] == "aer":
+            self.hybrid = Aer_Hybrid(
+            self.params.n_qubits,
+            backend = self.params.backend,
+            shots = self.params.shots,
+            shift = self.params.shift)
+            self.simulation = True
+        else:
+            self.hybrid = Hybrid
+            self.simulation = False
         self.fc3 = nn.Linear(2**self.params.n_qubits, 2)
+        self.fc4 = nn.Linear(self.params.n_qubits, 2)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def forward(self, x):
@@ -42,14 +53,20 @@ class Simple_QHN(nn.Module):
         x = torch.flatten(x, 1)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
-        x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
-
-        x = self.hybrid(input = x, 
-            n_qubits = self.params.n_qubits,
-            backend = self.params.backend,
-            shots = self.params.shots,
-            shift = self.params.shift,).forward().to(self.device)
-        x = F.softmax(self.fc3(x), dim=1)
+        if self.no_quantum:
+            x = self.fc4(x)
+        else:
+            x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
+            if self.simulation:
+                x = self.hybrid(x).to(self.device)
+            else: 
+                x = self.hybrid(input = x, 
+                    n_qubits = self.params.n_qubits,
+                    backend = self.params.backend,
+                    shots = self.params.shots,
+                    shift = self.params.shift,).forward().to(self.device)
+            self.fc3(x)
+        x = F.softmax(x, dim=1)
         return x
 
 
@@ -86,4 +103,6 @@ class MNIST_QHN(nn.Module):
         x = F.softmax(self.fc3(x), dim=1)
         return x
 
-
+if __name__ == "__main__":
+    backend = "aer_simulator"
+    print(backend[0:2])

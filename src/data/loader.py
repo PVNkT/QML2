@@ -5,7 +5,7 @@ from typing import Union, List
 import torch
 from torch.utils.data import Dataset
 
-from src.data import Load, SITES_DICT
+from src.data import Load, SITES_DICT, Load_MNIST
 
   
 class ROIDataset(Dataset):
@@ -70,7 +70,7 @@ class MNISTDataset(Dataset):
         data = self.data[index]
         label = self.labels[index]
         return data, label
-        
+
 
 
 if __name__ == "__main__":

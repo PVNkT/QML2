@@ -11,5 +11,6 @@ Simple_QHN:
   shots: 200
   lstm_hidden: 128
   linear_out: 64
-  backend: ibmq_qasm_simulator
+  backend: ibm_lagos
+  no_quantum: False
 

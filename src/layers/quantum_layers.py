@@ -154,8 +154,8 @@ if __name__ == "__main__":
     print(Hybrid(input = torch.Tensor([[1,2,3,4],[5,6,7,8]]).cuda(),backend="ibmq_lima").forward())
 
 
-"""
-class QuantumCircuit:
+
+class Aer_QuantumCircuit:
     
     #This class provides a simple interface for interaction with the quantum circuit
     
@@ -183,7 +183,7 @@ class QuantumCircuit:
         for theta, qubit in zip(self.theta, self.all_qubits):
             self._circuit.ry(theta, qubit)
 
-        for i in [2,3,4,5]:
+        for i in range(2,self.n_qubit):
             self._circuit.cx(0,i)
 
         self._circuit.measure_all()
@@ -226,14 +226,14 @@ class QuantumCircuit:
         return states/self.shots#기댓값을 출력
 
 
-class HybridFunction(Function):
+class Aer_HybridFunction(Function):
     #Hybrid quantum - classical function definition
 
     @staticmethod
-    def forward(ctx, input, quantum_circuit, shift):
+    def forward(ctx, input, Aer_quantum_circuit, shift):
         #Forward pass computation
         ctx.shift = shift
-        ctx.quantum_circuit = quantum_circuit
+        ctx.quantum_circuit = Aer_quantum_circuit
 
         # expectation_z = ctx.quantum_circuit.run(input[0].tolist())
         # result = torch.tensor([expectation_z])
@@ -279,21 +279,21 @@ class HybridFunction(Function):
         return grad.to(device), None, None
 
 
-class Hybrid(nn.Module):
+class Aer_Hybrid(nn.Module):
     #Hybrid quantum - classical layer definition
 
     def __init__(
         self, n_qubits=2, backend="aer_simulator", shots=100, shift=0.6
     ):
-        super(Hybrid, self).__init__()
-        self.quantum_circuit = QuantumCircuit(
+        super(Aer_Hybrid, self).__init__()
+        self.quantum_circuit = Aer_QuantumCircuit(
             n_qubits, qiskit.Aer.get_backend(backend), shots
         )
         self.shift = shift
 
     def forward(self, input):
-        return HybridFunction.apply(input, self.quantum_circuit, self.shift)
+        return Aer_HybridFunction.apply(input, self.quantum_circuit, self.shift)
 
-"""
+
 
 
