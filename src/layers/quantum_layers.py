@@ -6,47 +6,21 @@ from torch.autograd import Function
 import numpy as np
 from qiskit import IBMQ
 
+from src.circuits import real_circuits, aer_circuits
+
 class QuantumCircuit:
     """
     This class provides a simple interface for interaction
     with the quantum circuit
     """
 
-    def __init__(self, n_qubits, backend, shots, thetas):
-        self.n_qubit = n_qubits
-        self.all_qubits = [i for i in range(n_qubits)]
-        deleted = self.all_qubits.copy()
-        self.circuits = []
-        del deleted[2]
-        self.thetas = thetas
+    def __init__(self, model, n_qubits, backend, shots, thetas):
         self.backend = backend
         self.shots = shots
-        for theta in thetas:
-        # --- Circuit definition ---
-            circuit = qiskit.QuantumCircuit(n_qubits)
-            circuit.h(deleted)
-                   
-            circuit.cx(1, 2)
-            circuit.cx(0, 1)
-            circuit.cx(2, 3)
-            circuit.barrier()
-            # --- multi qubit ---#
-            for j in range(len(theta)):
-                circuit.ry(float(theta[j]), j)
-
-            for i in [0,3]:
-                circuit.cx(1,i)
-
-            circuit.measure_all()
-            self.circuits.append(circuit)
-        # self.theta = qiskit.circuit.Parameter("theta")
-        # --- multi qubit ---#
+        self.thetas = thetas
+        self.n_qubit = n_qubits
+        self.circuits = getattr(real_circuits, model)(n_qubits, thetas).get_circuit()
         
-
-        # ---------------------------
-
-        
-
     def run(self):
         
         #t_qc = transpile(self._circuit, self.backend)
@@ -88,18 +62,19 @@ class HybridFunction(Function):
     """Hybrid quantum - classical function definition"""
 
     @staticmethod
-    def forward(ctx, n_qubits, backend, shots, input, quantum_circuit, shift):
+    def forward(ctx, n_qubits, backend, shots, input, quantum_circuit, shift, model):
         """Forward pass computation"""
         ctx.shift = shift
         ctx.n_qubits = n_qubits
         ctx.backend = backend
         ctx.shots = shots
+        ctx.model = model
         ctx.quantum_circuit = quantum_circuit
 
         # expectation_z = ctx.quantum_circuit.run(input[0].tolist())
         # result = torch.tensor([expectation_z])
         # -- multi qubit -- #
-        result = torch.Tensor(ctx.quantum_circuit(n_qubits, backend, shots, thetas = input).run())
+        result = torch.Tensor(ctx.quantum_circuit(model, n_qubits, backend, shots, thetas = input).run())
         
         #result = torch.stack(expectation_z, axis=0)
         ctx.save_for_backward(input, result)
@@ -116,8 +91,8 @@ class HybridFunction(Function):
         shift_right = input_list + np.ones(input_list.shape) * ctx.shift
         shift_left = input_list - np.ones(input_list.shape) * ctx.shift
         
-        expectation_right = ctx.quantum_circuit(ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_right).run()
-        expectation_left = ctx.quantum_circuit(ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_left).run()
+        expectation_right = ctx.quantum_circuit(ctx.model, ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_right).run()
+        expectation_left = ctx.quantum_circuit(ctx.model, ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_left).run()
 
         gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(np.array([expectation_left]))
 
@@ -129,14 +104,14 @@ class HybridFunction(Function):
         
         grad = gradient * grad_output
         grad = torch.matmul(grad.type(torch.FloatTensor), torch.FloatTensor(possible_states)).squeeze()
-        return None, None, None, grad.to(device), None, None
+        return None, None, None, grad.to(device), None, None, None
 
 
 class Hybrid(nn.Module):
     """Hybrid quantum - classical layer definition"""
 
     def __init__(
-        self, input, n_qubits=4, backend="aer_simulator", shots=100, shift=0.6
+        self, input, model, n_qubits=4, backend="aer_simulator", shots=100, shift=0.6, 
     ):
         super(Hybrid, self).__init__()
         provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
@@ -146,12 +121,16 @@ class Hybrid(nn.Module):
         self.input = input
         self.n_qubits = n_qubits
         self.shots = shots
-
+        self.model = model
     def forward(self):
-        return HybridFunction.apply(self.n_qubits, self.backend, self.shots, self.input, self.quantum_circuit, self.shift, )
-
-if __name__ == "__main__":
-    print(Hybrid(input = torch.Tensor([[1,2,3,4],[5,6,7,8]]).cuda(),backend="ibmq_lima").forward())
+        return HybridFunction.apply(
+            self.n_qubits, 
+            self.backend, 
+            self.shots, 
+            self.input, 
+            self.quantum_circuit, 
+            self.shift, 
+            self.model)
 
 
 
@@ -160,37 +139,14 @@ class Aer_QuantumCircuit:
     #This class provides a simple interface for interaction with the quantum circuit
     
 
-    def __init__(self, n_qubits, backend, shots):
+    def __init__(self, model, n_qubits, backend, shots):
         # --- Circuit definition ---
-        self._circuit = qiskit.QuantumCircuit(n_qubits)
-        self.n_qubit = n_qubits
-        self.all_qubits = [i for i in range(n_qubits)]
-        # self.theta = qiskit.circuit.Parameter("theta")
-        # --- multi qubit ---#
-        self.theta = [qiskit.circuit.Parameter(f"theta_{i}") for i in self.all_qubits]
-
-        deleted = self.all_qubits.copy()
-        del deleted[1]
-
-        self._circuit.h(deleted)
-        # self._circuit.h(0)
-        
-        
-        self._circuit.cx(0, 1)
-        # self._circuit.ry(self.theta, all_qubits)
-        self._circuit.barrier()
-        # --- multi qubit ---#
-        for theta, qubit in zip(self.theta, self.all_qubits):
-            self._circuit.ry(theta, qubit)
-
-        for i in range(2,self.n_qubit):
-            self._circuit.cx(0,i)
-
-        self._circuit.measure_all()
-        # ---------------------------
-
         self.backend = backend
         self.shots = shots
+        self.n_qubit = n_qubits
+        self.all_qubits = [i for i in range(n_qubits)]
+        self.theta = [qiskit.circuit.Parameter(f"theta_{i}") for i in self.all_qubits]
+        self._circuit = getattr(aer_circuits, model)(n_qubits, self.theta).get_circuit()
 
     def run(self, thetas):
         t_qc = transpile(self._circuit, self.backend)
@@ -230,11 +186,11 @@ class Aer_HybridFunction(Function):
     #Hybrid quantum - classical function definition
 
     @staticmethod
-    def forward(ctx, input, Aer_quantum_circuit, shift):
+    def forward(ctx, input, model, Aer_quantum_circuit, shift):
         #Forward pass computation
         ctx.shift = shift
         ctx.quantum_circuit = Aer_quantum_circuit
-
+        ctx.model = model
         # expectation_z = ctx.quantum_circuit.run(input[0].tolist())
         # result = torch.tensor([expectation_z])
         # -- multi qubit -- #
@@ -276,24 +232,26 @@ class Aer_HybridFunction(Function):
         grad = gradients * grad_output
         grad = torch.matmul(grad.type(torch.FloatTensor), torch.FloatTensor(possible_states))
         
-        return grad.to(device), None, None
+        return grad.to(device), None, None, None
 
 
 class Aer_Hybrid(nn.Module):
     #Hybrid quantum - classical layer definition
 
     def __init__(
-        self, n_qubits=2, backend="aer_simulator", shots=100, shift=0.6
+        self, model, n_qubits=2, backend="aer_simulator", shots=100, shift=0.6
     ):
         super(Aer_Hybrid, self).__init__()
+        self.model = model
         self.quantum_circuit = Aer_QuantumCircuit(
-            n_qubits, qiskit.Aer.get_backend(backend), shots
+            self.model,n_qubits, qiskit.Aer.get_backend(backend), shots
         )
         self.shift = shift
 
     def forward(self, input):
-        return Aer_HybridFunction.apply(input, self.quantum_circuit, self.shift)
+        return Aer_HybridFunction.apply(input, self.model, self.quantum_circuit, self.shift)
 
-
+if __name__ == "__main__":
+    print(Hybrid(input = torch.Tensor([[1,2,3,4],[5,6,7,8]]).cuda(),backend="ibmq_lima").forward())
 
 

@@ -46,12 +46,9 @@ MNIST_QHN:
   lstm_hidden: 128
   linear_out: 64
   shots: 200
-
-quantum_circuit:
-  n_qubits: 6
-  simulator: aer_simulator
-  shift: 0.6
-  shots: 100
+  backend: aer_simulator
+  no_quantum: False
+  model: model_1
 
 
 
