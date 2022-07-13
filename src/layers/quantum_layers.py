@@ -5,7 +5,7 @@ from torch import nn
 from torch.autograd import Function
 import numpy as np
 from qiskit import IBMQ
-
+from qiskit.providers.aer import AerSimulator
 from src.circuits import real_circuits, aer_circuits
 
 class QuantumCircuit:
@@ -111,11 +111,14 @@ class Hybrid(nn.Module):
     """Hybrid quantum - classical layer definition"""
 
     def __init__(
-        self, input, model, n_qubits=4, backend="aer_simulator", shots=100, shift=0.6, 
-    ):
+        self, input, model, n_qubits, backend, shots, shift):
         super(Hybrid, self).__init__()
         provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
-        self.backend = provider.get_backend(backend)
+        self.backend = provider.get_backend(backend.backend)
+        if backend.simulation:
+            self.backend = AerSimulator(device="GPU").from_backend(self.backend)
+        else:    
+            pass
         self.quantum_circuit = QuantumCircuit
         self.shift = shift
         self.input = input
@@ -239,12 +242,13 @@ class Aer_Hybrid(nn.Module):
     #Hybrid quantum - classical layer definition
 
     def __init__(
-        self, model, n_qubits=2, backend="aer_simulator", shots=100, shift=0.6
-    ):
+        self, model, n_qubits, backend, shots, shift):
         super(Aer_Hybrid, self).__init__()
         self.model = model
+        self.backend = backend.backend
+        self.backend = AerSimulator(device='GPU')
         self.quantum_circuit = Aer_QuantumCircuit(
-            self.model,n_qubits, qiskit.Aer.get_backend(backend), shots
+            self.model,n_qubits, self.backend, shots
         )
         self.shift = shift
 

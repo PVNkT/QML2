@@ -15,6 +15,7 @@ class Simple_QHN(nn.Module):
         self.params = params.Simple_QHN
         self.no_quantum = self.params.no_quantum
         self.model = self.params.model
+        self.simulation = self.params.backend.simulation
         self.lstm_hidden = self.params.lstm_hidden
         self.conv1 = nn.Conv1d(116, 6, kernel_size=5)
         self.conv2 = nn.Conv1d(6, 16, kernel_size=5)
@@ -27,7 +28,7 @@ class Simple_QHN(nn.Module):
         )
         self.fc1 = nn.Linear(256, self.params.linear_out)
         self.fc2 = nn.Linear(self.params.linear_out, self.params.n_qubits)
-        if self.params.backend[0:3] == "aer":
+        if self.params.backend.backend[0:3] == "aer":
             self.hybrid = Aer_Hybrid(
             model = self.model,
             n_qubits = self.params.n_qubits,
@@ -35,10 +36,8 @@ class Simple_QHN(nn.Module):
             shots = self.params.shots,
             shift = self.params.shift, 
             )
-            self.simulation = True
         else:
             self.hybrid = Hybrid
-            self.simulation = False
         self.fc3 = nn.Linear(2**self.params.n_qubits, 2)
         self.fc4 = nn.Linear(self.params.n_qubits, 2)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -60,7 +59,7 @@ class Simple_QHN(nn.Module):
             x = self.fc4(x)
         else:
             x = torch.tanh(x) * torch.ones_like(x) * torch.tensor(np.pi / 2)
-            if self.simulation:
+            if self.params.backend.backend[0:3] == "aer":
                 x = self.hybrid(x).to(self.device)
                 
             else: 
@@ -81,12 +80,13 @@ class MNIST_QHN(nn.Module):
         self.params = params.MNIST_QHN
         self.no_quantum = self.params.no_quantum
         self.model = self.params.model
+        self.simulation = self.params.backend.simulation
         self.conv1 = nn.Conv2d(1, 6, kernel_size=5)
         self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
         self.dropout = nn.Dropout2d()
         self.fc1 = nn.Linear(256, self.params.linear_out)
         self.fc2 = nn.Linear(self.params.linear_out, self.params.n_qubits)
-        if self.params.backend[0:3] == "aer":
+        if self.params.backend.backend[0:3] == "aer":
             self.hybrid = Aer_Hybrid(
             model = self.model,
             n_qubit = self.params.n_qubits,
@@ -94,10 +94,8 @@ class MNIST_QHN(nn.Module):
             shots = self.params.shots,
             shift = self.params.shift, 
             )
-            self.simulation = True
         else:
             self.hybrid = Hybrid
-            self.simulation = False
         self.fc3 = nn.Linear(2**self.params.n_qubits, 10)
         self.fc4 = nn.Linear(self.params.n_qubits, 2)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

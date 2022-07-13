@@ -46,7 +46,9 @@ MNIST_QHN:
   lstm_hidden: 128
   linear_out: 64
   shots: 200
-  backend: aer_simulator
+  backend:
+    simulation: True
+    backend: aer_simulator
   no_quantum: False
   model: model_1
 
