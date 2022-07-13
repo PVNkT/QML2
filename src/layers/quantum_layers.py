@@ -6,6 +6,7 @@ from torch.autograd import Function
 import numpy as np
 from qiskit import IBMQ
 from qiskit.providers.aer import AerSimulator
+from qiskit.providers.ibmq import least_busy
 from src.circuits import real_circuits, aer_circuits
 
 class QuantumCircuit:
@@ -114,7 +115,10 @@ class Hybrid(nn.Module):
         self, input, model, n_qubits, backend, shots, shift):
         super(Hybrid, self).__init__()
         provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
-        self.backend = provider.get_backend(backend.backend)
+        if backend.backend[0:5] == "least":
+            self.backend =least_busy(provider.backends(filters=lambda b: not b.configuration().simulator and b.configuration().n_qubits >=n_qubits and b.status().operational)) 
+        else:
+            self.backend = provider.get_backend(backend.backend)
         if backend.simulation:
             self.backend = AerSimulator(device="GPU").from_backend(self.backend)
         else:    
