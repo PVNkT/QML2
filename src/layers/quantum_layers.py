@@ -7,6 +7,7 @@ import numpy as np
 from qiskit import IBMQ
 from qiskit.providers.aer import AerSimulator
 from qiskit.providers.ibmq import least_busy
+from qiskit.tools import job_monitor
 from src.circuits import real_circuits, aer_circuits
 
 class QuantumCircuit:
@@ -37,6 +38,8 @@ class QuantumCircuit:
         t_qc = transpile(circuit_list, self.backend,output_name=output_name)
         qobj = assemble(t_qc, shots=self.shots, backend = self.backend)
         job = self.backend.run(qobj)
+        job_monitor(job)
+        job.wait_for_final_state()
         results = job.result().get_counts()
 
         #counts = np.array(list(result.values()))
@@ -116,7 +119,15 @@ class Hybrid(nn.Module):
         super(Hybrid, self).__init__()
         provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
         if backend.backend[0:5] == "least":
-            self.backend =least_busy(provider.backends(filters=lambda b: not b.configuration().simulator and b.configuration().n_qubits >=n_qubits and b.status().operational)) 
+            print("finding least busy")
+            available_backends = provider.backends(n_qubits > 4, operational=True, simulator=False)
+            pending = []
+            for backend in available_backends:
+                pending.append(backend.status().pending_jobs)
+            pending = np.array(pending)
+            self.backend = available_backends[np.argmax(pending)]
+            #self.backend =least_busy(provider.backends(n_qubits > n_qubits, operational=True, simulator=False))
+            print("least busy backend is ", self.backend)
         else:
             self.backend = provider.get_backend(backend.backend)
         if backend.simulation:
