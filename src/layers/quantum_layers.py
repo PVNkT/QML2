@@ -17,7 +17,33 @@ class QuantumCircuit:
     """
 
     def __init__(self, model, n_qubits, backend, shots, thetas):
-        self.backend = backend
+        provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
+        if backend.backend[0:5] == "least":
+            print("finding least busy \r")
+            available_backends = provider.backends(n_qubits > n_qubits, operational=True, simulator=False)
+            pending = []
+            fast_backend = False
+            for a_backend in available_backends:
+                if a_backend.status().pending_jobs < 2:
+                    self.backend = a_backend
+                    fast_backend = True
+                    break
+                else:
+                    pending.append(a_backend.status().pending_jobs)
+            if fast_backend:
+                print("run in fast backend: ",f"{self.backend}")
+            else:
+                pending = np.array(pending)
+                self.backend = available_backends[np.argmin(pending)]
+                print("least busy backend is ", self.backend)
+            
+            #self.backend =least_busy(provider.backends(n_qubits > n_qubits, operational=True, simulator=False))
+        else:
+            self.backend = provider.get_backend(backend.backend)
+        if backend.simulation:
+            self.backend = AerSimulator(device="GPU").from_backend(self.backend)
+        else:    
+            pass
         self.shots = shots
         self.thetas = thetas
         self.n_qubit = n_qubits
@@ -37,9 +63,17 @@ class QuantumCircuit:
         
         t_qc = transpile(circuit_list, self.backend,output_name=output_name)
         qobj = assemble(t_qc, shots=self.shots, backend = self.backend)
-        job = self.backend.run(qobj)
-        job_monitor(job)
-        job.wait_for_final_state()
+        run = True
+        while run:
+            try:
+                job = self.backend.run(qobj)
+                job_monitor(job)
+                job.wait_for_final_state()
+                run = False
+            except:
+                print("error")
+                run = True
+        
         results = job.result().get_counts()
 
         #counts = np.array(list(result.values()))
@@ -117,23 +151,7 @@ class Hybrid(nn.Module):
     def __init__(
         self, input, model, n_qubits, backend, shots, shift):
         super(Hybrid, self).__init__()
-        provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
-        if backend.backend[0:5] == "least":
-            print("finding least busy")
-            available_backends = provider.backends(n_qubits > 4, operational=True, simulator=False)
-            pending = []
-            for backend in available_backends:
-                pending.append(backend.status().pending_jobs)
-            pending = np.array(pending)
-            self.backend = available_backends[np.argmax(pending)]
-            #self.backend =least_busy(provider.backends(n_qubits > n_qubits, operational=True, simulator=False))
-            print("least busy backend is ", self.backend)
-        else:
-            self.backend = provider.get_backend(backend.backend)
-        if backend.simulation:
-            self.backend = AerSimulator(device="GPU").from_backend(self.backend)
-        else:    
-            pass
+        self.backend = backend
         self.quantum_circuit = QuantumCircuit
         self.shift = shift
         self.input = input
