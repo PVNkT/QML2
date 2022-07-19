@@ -27,7 +27,7 @@ class QuantumCircuit:
                 if a_backend.status().status_msg != "active":
                     pending.append(1000)
                 else:
-                    if a_backend.status().pending_jobs < 2:
+                    if a_backend.status().pending_jobs < 1:
                         self.backend = a_backend
                         fast_backend = True
                         break
@@ -132,16 +132,16 @@ class HybridFunction(Function):
         """Backward pass computation"""
         input, expectation_z = ctx.saved_tensors
         input_list = np.array(input.tolist())
-
-        shift_right = input_list + np.ones(input_list.shape) * ctx.shift
-        shift_left = input_list - np.ones(input_list.shape) * ctx.shift
-        
+        shift_right = input_list + np.ones(input_list.shape) * ctx.shift.shift
         expectation_right = ctx.quantum_circuit(ctx.model, ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_right).run()
-        expectation_left = ctx.quantum_circuit(ctx.model, ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_left).run()
-
-        gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(np.array([expectation_left]))
-
-
+            
+        if ctx.shift.two_way:    
+            shift_left = input_list - np.ones(input_list.shape) * ctx.shift.shift      
+            expectation_left = ctx.quantum_circuit(ctx.model, ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_left).run()
+            gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(np.array([expectation_left]))
+        else:
+            gradient = torch.tensor(np.array([expectation_right])) - expectation_z
+        
         possible_states = []
         for s in range(2**(len(input[0]))):
             possible_states.append(np.array(list(format(s, "b").zfill(len(input[0]))),np.float64))
@@ -253,20 +253,27 @@ class Aer_HybridFunction(Function):
         input, expectation_z = ctx.saved_tensors
         input_list = np.array(input.tolist())
 
-        shift_right = input_list + np.ones(input_list.shape) * ctx.shift
-        shift_left = input_list - np.ones(input_list.shape) * ctx.shift
+        shift_right = input_list + np.ones(input_list.shape) * ctx.shift.shift
+        shift_left = input_list - np.ones(input_list.shape) * ctx.shift.shift
+        if ctx.shift.two_way:
+            gradients = []
+            for i in range(len(input_list)):
+                expectation_right = ctx.quantum_circuit.run(shift_right[i])
+                expectation_left = ctx.quantum_circuit.run(shift_left[i])
 
-        gradients = []
-        for i in range(len(input_list)):
-            expectation_right = ctx.quantum_circuit.run(shift_right[i])
-            expectation_left = ctx.quantum_circuit.run(shift_left[i])
+                gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(
+                    np.array([expectation_left])
+                )
+                gradients.append(gradient)
+            gradients = torch.concat(gradients, axis=0)
+        else:
+            gradients = []
+            for i in range(len(input_list)):
+                expectation_right = ctx.quantum_circuit.run(shift_right[i])
 
-            gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(
-                np.array([expectation_left])
-            )
-            gradients.append(gradient)
-        gradients = torch.concat(gradients, axis=0)
-
+                gradient = torch.tensor(np.array([expectation_right])) - expectation_z[i]
+                gradients.append(gradient)
+            gradients = torch.concat(gradients, axis=0)
         possible_states = []
         for s in range(2**(len(input[0]))):
             possible_states.append(np.array(list(format(s, "b").zfill(len(input[0]))),np.float64))
@@ -296,6 +303,6 @@ class Aer_Hybrid(nn.Module):
         return Aer_HybridFunction.apply(input, self.model, self.quantum_circuit, self.shift)
 
 if __name__ == "__main__":
-    print(Hybrid(input = torch.Tensor([[1,2,3,4],[5,6,7,8]]).cuda(),backend="ibmq_lima").forward())
+    print(Hybrid(input = torch.Tensor([[1,2,3,4],[5,6,7,8]]).cuda(),backend={"backend":"ibmq_lima", "simulation": True},model="model_7", n_qubits = 4, shots=200, shift=0.2).forward())
 
 
