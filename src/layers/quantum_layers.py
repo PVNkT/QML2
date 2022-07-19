@@ -17,29 +17,33 @@ class QuantumCircuit:
     """
 
     def __init__(self, model, n_qubits, backend, shots, thetas):
-        provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
+        self.provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
         if backend.backend[0:5] == "least":
             print("finding least busy \r")
-            available_backends = provider.backends(n_qubits > n_qubits, operational=True, simulator=False)
+            available_backends = self.provider.backends(n_qubits > n_qubits, operational=True, simulator=False)
             pending = []
             fast_backend = False
             for a_backend in available_backends:
-                if a_backend.status().pending_jobs < 2:
-                    self.backend = a_backend
-                    fast_backend = True
-                    break
+                if a_backend.status().status_msg != "active":
+                    pending.append(1000)
                 else:
-                    pending.append(a_backend.status().pending_jobs)
+                    if a_backend.status().pending_jobs < 2:
+                        self.backend = a_backend
+                        fast_backend = True
+                        break
+                    else:
+                        pending.append(a_backend.status().pending_jobs)
             if fast_backend:
                 print("run in fast backend: ",f"{self.backend}")
             else:
                 pending = np.array(pending)
+
                 self.backend = available_backends[np.argmin(pending)]
                 print("least busy backend is ", self.backend)
             
             #self.backend =least_busy(provider.backends(n_qubits > n_qubits, operational=True, simulator=False))
         else:
-            self.backend = provider.get_backend(backend.backend)
+            self.backend = self.provider.get_backend(backend.backend)
         if backend.simulation:
             self.backend = AerSimulator(device="GPU").from_backend(self.backend)
         else:    
@@ -69,7 +73,10 @@ class QuantumCircuit:
                 job = self.backend.run(qobj)
                 job_monitor(job)
                 job.wait_for_final_state()
-                run = False
+                if str(self.provider.backend.jobs()[0].status())[10:] == "DONE":
+                    run = False
+                else:
+                    run = True
             except:
                 print("error")
                 run = True
