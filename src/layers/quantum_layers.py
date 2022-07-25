@@ -18,21 +18,26 @@ class QuantumCircuit:
 
     def __init__(self, model, n_qubits, backend, shots, thetas):
         self.provider = IBMQ.get_provider(hub='ibm-q-skku', group='hanyang-uni', project='hu-students')
+        self.simulation = backend.simulation
         if backend.backend[0:5] == "least":
             print("finding least busy \r")
             available_backends = self.provider.backends(n_qubits > n_qubits, operational=True, simulator=False)
             pending = []
             fast_backend = False
             for a_backend in available_backends:
-                if a_backend.status().status_msg != "active":
-                    pending.append(1000)
-                else:
-                    if a_backend.status().pending_jobs < 1:
-                        self.backend = a_backend
-                        fast_backend = True
-                        break
+                try:
+                    if a_backend.status().status_msg != "active":
+                        pending.append(1000)
                     else:
-                        pending.append(a_backend.status().pending_jobs)
+                        if a_backend.status().pending_jobs < 1:
+                            self.backend = a_backend
+                            fast_backend = True
+                            break
+                        else:
+                            pending.append(a_backend.status().pending_jobs)
+                except:
+                    print(f"{a_backend} state load error")
+                    pending.append(1000)
             if fast_backend:
                 print("run in fast backend: ",f"{self.backend}")
             else:
@@ -44,7 +49,7 @@ class QuantumCircuit:
             #self.backend =least_busy(provider.backends(n_qubits > n_qubits, operational=True, simulator=False))
         else:
             self.backend = self.provider.get_backend(backend.backend)
-        if backend.simulation:
+        if self.simulation:
             self.backend = AerSimulator(device="GPU").from_backend(self.backend)
         else:    
             pass
@@ -71,12 +76,15 @@ class QuantumCircuit:
         while run:
             try:
                 job = self.backend.run(qobj)
-                job_monitor(job)
-                job.wait_for_final_state()
-                if str(self.provider.backend.jobs()[0].status())[10:] == "DONE":
+                if self.simulation:
                     run = False
                 else:
-                    run = True
+                    job_monitor(job)
+                    job.wait_for_final_state()
+                    if str(self.provider.backend.jobs()[0].status())[10:] == "DONE":
+                        run = False
+                    else:
+                        run = True
             except:
                 print("error")
                 run = True

@@ -12,7 +12,7 @@ def main(cfg=OmegaConf.load(CONFIG_DIR / "config.yaml")) -> None:
     cfg = OmegaConf.merge(cfg, model_params)
     cfg.merge_with_cli()
 
-    wandb.init(entity="qubit-hanyang", project=f"{cfg.log.project_name}", name=f"{cfg.Simple_QHN.model} {cfg.optimizer.lr},{cfg.Simple_QHN.shift}")
+    wandb.init(entity="qubit-hanyang", project=f"{cfg.log.project_name}", name=f"{cfg.Simple_QHN.model} {cfg.optimizer.lr},{cfg.Simple_QHN.shift.shift} {cfg.Simple_QHN.backend}")
     #IBMQ.save_account("token")
     IBMQ.load_account()
     runner = S_Runner(
