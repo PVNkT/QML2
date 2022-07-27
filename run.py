@@ -3,6 +3,7 @@ from pathlib import Path
 from qiskit import IBMQ
 from src.runners import S_Runner, LOSO_Runner
 import wandb
+import warnings
 
 CONFIG_DIR = Path("Configs")
 
@@ -12,9 +13,10 @@ def main(cfg=OmegaConf.load(CONFIG_DIR / "config.yaml")) -> None:
     cfg = OmegaConf.merge(cfg, model_params)
     cfg.merge_with_cli()
 
-    wandb.init(entity="qubit-hanyang", project=f"{cfg.log.project_name}", name=f"{cfg.Simple_QHN.model} {cfg.optimizer.lr},{cfg.Simple_QHN.shift.shift} {cfg.Simple_QHN.backend}")
+    wandb.init(entity="qubit-hanyang", project=f"{cfg.log.project_name}", name=f"{cfg.Simple_QHN.model} {cfg.optimizer.lr},{cfg.Simple_QHN.shift} {cfg.Simple_QHN.backend}")
     #IBMQ.save_account("token")
     IBMQ.load_account()
+    warnings.filterwarnings(action='ignore')
     runner = S_Runner(
         log=cfg.log,
         optimizer=cfg.optimizer,

@@ -7,9 +7,7 @@ LSTM:
 
 Simple_QHN:
   n_qubits: 4
-  shift: 
-    shift: 0.6
-    two_way: True
+  shift: 0.7854
   shots: 200
   lstm_hidden: 128
   linear_out: 64

@@ -4,4 +4,18 @@
 
 /Logs
 
+/src/callbacks/__pycache__
+
+/src/circuits/__pycache__
+
+/src/data/__pycache__
+
+/src/datamodules/__pycache__
+
+/src/layers/__pycache__
+
+/src/models/__pycache__
+
+/src/runners/__pycache__
+
 

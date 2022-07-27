@@ -97,7 +97,7 @@ class QuantumCircuit:
         possible_states = []
         for s in range(2**(self.n_qubit)):
             possible_states.append(format(s, "b").zfill(self.n_qubit))
-        states = []
+        expectations = []
         for result in results:
             state = []
             for i in possible_states:
@@ -106,9 +106,10 @@ class QuantumCircuit:
                 except:
                     state.append(0)   
             state = np.array(state, dtype=np.float64)
-            states.append(state)
-        states = np.array(states) 
-        return states/self.shots#기댓값을 출력
+            expectation = np.dot(state, np.arange(2**(self.n_qubit)))
+            expectations.append(expectation)
+        expectations = np.array(expectations) 
+        return expectations/self.shots#기댓값을 출력
 
 
 class HybridFunction(Function):
@@ -140,15 +141,12 @@ class HybridFunction(Function):
         """Backward pass computation"""
         input, expectation_z = ctx.saved_tensors
         input_list = np.array(input.tolist())
-        shift_right = input_list + np.ones(input_list.shape) * ctx.shift.shift
+        shift_right = input_list + np.ones(input_list.shape) * ctx.shift
         expectation_right = ctx.quantum_circuit(ctx.model, ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_right).run()
-            
-        if ctx.shift.two_way:    
-            shift_left = input_list - np.ones(input_list.shape) * ctx.shift.shift      
-            expectation_left = ctx.quantum_circuit(ctx.model, ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_left).run()
-            gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(np.array([expectation_left]))
-        else:
-            gradient = torch.tensor(np.array([expectation_right])) - expectation_z
+                
+        shift_left = input_list - np.ones(input_list.shape) * ctx.shift.shift      
+        expectation_left = ctx.quantum_circuit(ctx.model, ctx.n_qubits, ctx.backend, ctx.shots, thetas =shift_left).run()
+        gradient = torch.tensor(expectation_right) - torch.tensor(expectation_left)
         
         possible_states = []
         for s in range(2**(len(input[0]))):
@@ -261,27 +259,18 @@ class Aer_HybridFunction(Function):
         input, expectation_z = ctx.saved_tensors
         input_list = np.array(input.tolist())
 
-        shift_right = input_list + np.ones(input_list.shape) * ctx.shift.shift
-        shift_left = input_list - np.ones(input_list.shape) * ctx.shift.shift
-        if ctx.shift.two_way:
-            gradients = []
-            for i in range(len(input_list)):
-                expectation_right = ctx.quantum_circuit.run(shift_right[i])
-                expectation_left = ctx.quantum_circuit.run(shift_left[i])
+        shift_right = input_list + np.ones(input_list.shape) * ctx.shift
+        shift_left = input_list - np.ones(input_list.shape) * ctx.shift
+        gradients = []
+        for i in range(len(input_list)):
+            expectation_right = ctx.quantum_circuit.run(shift_right[i])
+            expectation_left = ctx.quantum_circuit.run(shift_left[i])
 
-                gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(
-                    np.array([expectation_left])
-                )
-                gradients.append(gradient)
-            gradients = torch.concat(gradients, axis=0)
-        else:
-            gradients = []
-            for i in range(len(input_list)):
-                expectation_right = ctx.quantum_circuit.run(shift_right[i])
-
-                gradient = torch.tensor(np.array([expectation_right])) - expectation_z[i]
-                gradients.append(gradient)
-            gradients = torch.concat(gradients, axis=0)
+            gradient = torch.tensor(np.array([expectation_right])) - torch.tensor(
+                np.array([expectation_left])
+            )
+            gradients.append(gradient)
+        gradients = torch.concat(gradients, axis=0)
         possible_states = []
         for s in range(2**(len(input[0]))):
             possible_states.append(np.array(list(format(s, "b").zfill(len(input[0]))),np.float64))

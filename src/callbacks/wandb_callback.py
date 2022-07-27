@@ -158,9 +158,9 @@ class LogF1PrecRecHeatmap(Callback):
 
             preds = torch.cat(self.preds).cpu().numpy().argmax(axis=1)
             targets = torch.cat(self.targets).cpu().numpy()
-            f1 = f1_score(targets, preds, average=None)
-            r = recall_score(targets, preds, average=None)
-            p = precision_score(targets, preds, average=None)
+            f1 = f1_score(targets, preds, average=None, zero_division=0)
+            r = recall_score(targets, preds, average=None, zero_division=0)
+            p = precision_score(targets, preds, average=None, zero_division=0)
             data = [f1, p, r]
 
             # set figure size
