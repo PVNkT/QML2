@@ -97,7 +97,7 @@ class QuantumCircuit:
         possible_states = []
         for s in range(2**(self.n_qubit)):
             possible_states.append(format(s, "b").zfill(self.n_qubit))
-        expectations = []
+        states = []
         for result in results:
             state = []
             for i in possible_states:
@@ -106,10 +106,9 @@ class QuantumCircuit:
                 except:
                     state.append(0)   
             state = np.array(state, dtype=np.float64)
-            expectation = np.dot(state, np.arange(2**(self.n_qubit)))
-            expectations.append(expectation)
-        expectations = np.array(expectations) 
-        return expectations/self.shots#기댓값을 출력
+            states.append(state)
+        states = np.array(states) 
+        return states/self.shots#기댓값을 출력
 
 
 class HybridFunction(Function):
