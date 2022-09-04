@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  app:
+    image: kth7186/pytorch:1.10.0-zsh-setup
+    container_name: DockerTorch_2
+    ipc: host
+    ports:
+      - 5686:8888
+    volumes:
+ marchenw/qml_image     - ../:/workspace/
+      - ~/Data/SCCNN:/workspace/Data/
+    working_dir: /workspace/
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [ gpu ]
+    stdin_open: true # docker run -i
+    tty: true # docker run -t
+ 
