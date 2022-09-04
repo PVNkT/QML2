@@ -148,7 +148,7 @@ torchmetrics==0.8.1
 torchvision==0.13.0
 tqdm==4.64.0
 tweedledum==1.1.1
-twisted==18.9.0
+twisted==22.4.0
 typing-extensions==4.2.0
 ubuntu-advantage-tools==27.7
 ufw==0.36
