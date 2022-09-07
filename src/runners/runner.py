@@ -21,9 +21,10 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from pytorch_lightning import seed_everything
 
+#같은 실험 환경 유지를 위해서 seed를 고정
 seed_everything(41)
 
-
+#신경망에서 사용되는 weight값을 초기화해주는 함수 kaiming_normal_과 xavier_normal_함수를 사용함
 def initialize_weights(m):
     if isinstance(m, nn.Conv1d):
         # nn.init.xavier_normal_(m.weight.data)
@@ -42,7 +43,7 @@ def initialize_weights(m):
                 elif "weight_hh" in name:
                     nn.init.orthogonal_(param.data[idx*mul:(idx+1)*mul])
 
-
+#각 사이트의 데이터를 훈련 데이터와 테스트 데이터로 나누어 학습을 시키는 경우
 class S_Runner(Base_Runner):
     def get_callbacks(self, site: str):
         """
@@ -67,15 +68,18 @@ class S_Runner(Base_Runner):
         ).values()
         callbacks = list(callbacks)
         return callbacks if len(callbacks) > 0 else None
-
+    #실제 작동하는 부분
     def run(self, profiler: Optional[str] = None):
+        #checkpoint를 저장할 장소를 만듬
         os.makedirs(
             os.path.join(self.log.checkpoint_path, self.log.project_name), exist_ok=True
         )
+        #만들어진 경로들의 수로 version을 결정
         self.version = len(
             os.listdir(os.path.join(self.log.checkpoint_path, self.log.project_name))
         )
 
+        #사용할 ROI를 고르는 과정, QML에서는 전체를 사용하는 경우만 사용
         # TODO: extract to function
         if self.data.get("roi", None) is None:
             self.data.roi = list(range(116))
@@ -96,16 +100,18 @@ class S_Runner(Base_Runner):
         # SITES = ["Peking", "KKI", "NI", "NYU", "OHSU"]
 
         final_results = list()
+        #각 사이트들의 index
         site_index = [5, 1, 6, 3, 4]
+        #각 사이트들에 대해서 훈련을 진행
         for i in site_index:
             train_site = deepcopy(list(SITES_DICT.keys()))
             print(train_site, type(train_site))
-            
+            #site_index와 train_site의 관계를 표현
             site_dict = {5:3, 1:0, 6:4, 3:1, 4:2}
-            
+            #train하는 사이트의 이름을 저장
             self.data.train_site = train_site[site_dict[i]]
             site_str = SITES_DICT[i]
-
+            #데이터를 불러옴
             dm = self.get_datamodule(dataset=ROIDataset, datamodule=DataModule)
             model = self.get_network(Task=ClassificationTask)
             model.apply(initialize_weights)
