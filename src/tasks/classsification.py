@@ -16,10 +16,10 @@ import torchmetrics.functional as MF
 
 from src import models
 
-
+#분류 작업을 하는 lightning 모듈
 class ClassificationTask(LightningModule):
     prefix = ""
-
+    
     def __init__(self, opt: Dict = None, net: Dict = None, inputs: Any = None) -> None:
         super().__init__()
         self.save_hyperparameters()

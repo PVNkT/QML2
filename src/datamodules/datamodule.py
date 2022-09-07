@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, Subset
 from pytorch_lightning import LightningDataModule
 from src.data import collate_fn, SamplerFactory
 
-
+#데이터들을 받아서 pytorch가 인식하는 데이터 형태로 batch등을 조절해서 입력하는 class
 @dataclass
 class DataModule(LightningDataModule):
     def __init__(self,data: Dict, loader: Dict, dataset: Dict):
@@ -53,6 +53,7 @@ class DataModule(LightningDataModule):
     def test_dataloader(self):
         return DataLoader(self.test_dataset, **self.loader.eval, collate_fn=collate_fn)
 
+#데이터들을 받아서 pytorch가 인식하는 데이터 형태로 batch등을 조절해서 입력하는 class
 @dataclass
 class LOSODataModule(LightningDataModule):
     def __init__(self,data: Dict, loader: Dict, dataset: Dict):
