@@ -26,8 +26,8 @@ class ROIDataset(Dataset):
         return data, label
 
 class LOSODataset(Dataset):
-    def __init__( self, site: Union[List, str]) -> None:
-        load = LOSOLoad()
+    def __init__( self, site: Union[List, str], same_size:Boolean) -> None:
+        load = LOSOLoad(same_size = same_size)
         self.data, self.labels = load.loadSiteData(site)
 
     def __len__(self):

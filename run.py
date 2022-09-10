@@ -26,7 +26,7 @@ def main(cfg=OmegaConf.load(CONFIG_DIR / "config.yaml")) -> None:
     warnings.filterwarnings(action='ignore')
 
     #원하는 종류의 runner를 고르고 config파일에서 변수들을 불러와서 실행
-    runner = S_Runner(
+    runner = LOSO_Runner(
         log=cfg.log,
         optimizer=cfg.optimizer,
         loader=cfg.loader,

@@ -143,16 +143,44 @@ class Load:
 
 @dataclass
 class LOSOLoad:
-    df: pd.DataFrame = pd.read_csv(Path(DATA_DIR) / "master_df.csv")
 
+    def __init__(self, same_size: Boolean = False):
+        self.same_size = same_size
+        self.df: pd.DataFrame = pd.read_csv(Path(DATA_DIR) / "master_df.csv")
     def loadSiteData(self, site: Union[List[int], int] = SITE_INDEX):
         if isinstance(site, int):
             site = [site]
+            if len(site) > 1:
+                self.same_size = False
 
         df = self.df[self.df['Site'].isin(site)]
         data = [np.load(p) for p in df["filePath"].values]
         labels = df["DX"].values
-
+        if self.same_size:
+            label_0 = []
+            label_1 = []
+            for i, label in enumerate(labels):
+                if label == 0:
+                    label_0.append(i)
+                else:
+                    label_1.append(i)
+            
+            if len(label_0) > len(label_1):
+                label_0 = label_0[:len(label_1)]
+            else:
+                label_1 = label_1[:len(label_0)]
+            
+            sliced_label = []
+            sliced_data = []
+            label = label_0 + label_1
+            label = sorted(label)
+            for index in label:
+                sliced_label.append(labels[index])
+                sliced_data.append(data[index])
+            data = sliced_data
+            labels = np.array(sliced_label)
+            
+        
         return data, labels
 
 @dataclass

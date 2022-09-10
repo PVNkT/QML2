@@ -64,11 +64,11 @@ class LOSODataModule(LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
         if stage in ("fit", None):
-            self.train_dataset = self.dataset(self.data.train_site)
-            self.val_dataset = self.dataset(self.data.test_site)
+            self.train_dataset = self.dataset(self.data.train_site, False)
+            self.val_dataset = self.dataset(self.data.test_site, self.data.same_size)
 
         if stage in ("test", None):
-            self.test_dataset = self.dataset(self.data.test_site)
+            self.test_dataset = self.dataset(self.data.test_site, self.data.same_size)
 
     def train_dataloader(self):
         conf = deepcopy(self.loader.train)

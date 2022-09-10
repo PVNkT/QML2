@@ -236,7 +236,12 @@ class LOSO_Runner(Base_Runner):
         # SITES = ["Peking", "KKI", "NI", "NYU", "OHSU"]
 
         final_results = list()
-        for i in [5, 1, 6, 3, 4]:
+        site_list = list()
+        new_SITES_DICT = dict([(value, key) for key, value in SITES_DICT.items()])
+        for site in self.data.site:
+            site_list.append(new_SITES_DICT[site])
+        
+        for i in site_list:
             train_site = deepcopy(list(SITES_DICT.keys()))
             test_site = train_site.pop(train_site.index(i))
             self.data.train_site = train_site

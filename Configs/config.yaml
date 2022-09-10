@@ -27,6 +27,8 @@ loader:
 
 data:
   path: Data/preprocessed/all
+  same_size: True
+  site: ["KKI", "NI", "NYU", "OHSU", "Peking"]
 
 network:
   model: ${log.model_name}
