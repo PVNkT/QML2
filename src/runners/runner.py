@@ -116,8 +116,10 @@ class S_Runner(Base_Runner):
             model = self.get_network(Task=ClassificationTask)
             model.apply(initialize_weights)
             model.prefix = site_str.upper() + "/"
-
+            
+            #pytorch lightning의 trainer함수를 통해서 훈련에 사용될 설정들을 입력함
             trainer = Trainer(
+                #훈련 log를 저장하는 부분, TensorBoard와 wandb를 사용함
                 logger=[
                     TensorBoardLogger(
                         save_dir=self.log.log_path,
@@ -166,23 +168,16 @@ class S_Runner(Base_Runner):
                 # gradient_clip_val=0.5,
             )
             trainer.test_site_prefix = model.prefix
-
+            #model을 학습시킴
             trainer.fit(model, datamodule=dm)
+            #model을 테스트 함
             trainer.test(model, datamodule=dm, ckpt_path="best")
             final_results.append(
                 trainer.callback_metrics[f"{model.prefix}Accuracy/test"]
             )
-
-        try:
-            import wandb
-
-            wb_logger = wbc.get_wandb_logger(trainer)
-            
-        except Exception as e:
-            print(e)
-
         return
 
+#한 사이트를 테스트 데이터로 사용하고 나머지 사이트의 데이터를 훈련 데이터로 사용하는 경우 
 class LOSO_Runner(Base_Runner):
     def get_callbacks(self, site: str):
         """
@@ -207,15 +202,17 @@ class LOSO_Runner(Base_Runner):
         ).values()
         callbacks = list(callbacks)
         return callbacks if len(callbacks) > 0 else None
-
+    #실제 작동하는 부분
     def run(self, profiler: Optional[str] = None):
+        #checkpoint를 저장할 장소를 만듬
         os.makedirs(
             os.path.join(self.log.checkpoint_path, self.log.project_name), exist_ok=True
         )
+        #만들어진 경로들의 수로 version을 결정
         self.version = len(
             os.listdir(os.path.join(self.log.checkpoint_path, self.log.project_name))
         )
-
+        #사용할 ROI를 고르는 과정, QML에서는 전체를 사용하는 경우만 사용
         # TODO: extract to function
         if self.data.get("roi", None) is None:
             self.data.roi = list(range(116))
@@ -242,18 +239,26 @@ class LOSO_Runner(Base_Runner):
             site_list.append(new_SITES_DICT[site])
         
         for i in site_list:
+        #각 사이트 들에 대해서 훈련을 진행
+            #사이트들을 불러옴
             train_site = deepcopy(list(SITES_DICT.keys()))
+            #해당되는 사이트를 test 사이트로 분리함
             test_site = train_site.pop(train_site.index(i))
+            #test 사이트와 train 사이트를 저장함
             self.data.train_site = train_site
             self.data.test_site = test_site
             site_str = SITES_DICT[i]
 
+            #데이터를 불러옴
             dm = self.get_datamodule(dataset=LOSODataset, datamodule=LOSODataModule)
+            #모델을 불러옴
             model = self.get_network(Task=ClassificationTask)
+            #weight초기화
             model.apply(initialize_weights)
             model.prefix = site_str.upper() + "/"
-
+            #pytorch lightning의 trainer함수를 통해서 훈련에 사용될 설정들을 입력함
             trainer = Trainer(
+                #훈련 log를 저장하는 부분, TensorBoard와 wandb를 사용함
                 logger=[
                     TensorBoardLogger(
                         save_dir=self.log.log_path,
@@ -302,13 +307,15 @@ class LOSO_Runner(Base_Runner):
                 # gradient_clip_val=0.5,
             )
             trainer.test_site_prefix = model.prefix
-
+            #model을 학습시킴
             trainer.fit(model, datamodule=dm)
+            #model을 테스트함
             trainer.test(model, datamodule=dm, ckpt_path="best")
             final_results.append(
                 trainer.callback_metrics[f"{model.prefix}Accuracy/test"]
             )
 
+        #사이트들에 대한 훈련이 끝나고 전체 사이트에 대한 이미지를 업로드
         try:
             import wandb
 

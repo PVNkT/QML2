@@ -15,12 +15,13 @@ from multiprocessing import Pool
 from concurrent.futures import ThreadPoolExecutor
 import concurrent.futures
 
+#데이터의 위치와 기본 정보
 DATA_DIR = f"Data/nitrc_niak"
 SITE_INDEX = [1, 3, 4, 5, 6]
 SITES = ["Peking", "KKI", "NI", "NYU", "OHSU"]
 SITES_DICT = {idx: site for idx, site in zip(SITE_INDEX, SITES)}
 
-
+#경로로부터 주어진 파일을 불러온다.
 class Extract:
     def __init__(self, data_dir: str = DATA_DIR):
         data_dir = Path(data_dir)
@@ -116,7 +117,7 @@ class Transform:
                 ),
             )
 
-
+#master_df 파일에서 각 사이트의 데이터의 저장 위치를 불러와서 데이터와 label을 내보낸다.
 @dataclass
 class Load:
     df: pd.DataFrame = pd.read_csv(Path(DATA_DIR) / "master_df.csv")
@@ -128,6 +129,7 @@ class Load:
         data = [np.load(p) for p in df["filePath"].values]
         labels = df["DX"].values
         print(site)
+        #각 사이트 별로 훈련 데이터와 테스트 데이터를 어느 위치에서 자를 것인지를 나타내는 dictionary
         slice_dict = {5:216, 1: 194, 3:83, 4:48,6:79}
         slice = slice_dict[site[0]]
         
@@ -140,13 +142,15 @@ class Load:
         print("확인 :" ,len(data),len(labels))
         #print("확인 :" ,np.array(data).shape,len(labels))
         return data, labels
-
+#master_df 파일에서 각 사이트의 데이터의 저장 위치를 불러와서 데이터와 label을 내보낸다.
 @dataclass
 class LOSOLoad:
 
     def __init__(self, same_size: Boolean = False):
         self.same_size = same_size
         self.df: pd.DataFrame = pd.read_csv(Path(DATA_DIR) / "master_df.csv")
+    
+    #주어진 사이트의 데이터를 불러옴
     def loadSiteData(self, site: Union[List[int], int] = SITE_INDEX):
         if isinstance(site, int):
             site = [site]
