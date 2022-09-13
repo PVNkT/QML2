@@ -132,16 +132,18 @@ class Load:
         #각 사이트 별로 훈련 데이터와 테스트 데이터를 어느 위치에서 자를 것인지를 나타내는 dictionary
         slice_dict = {5:216, 1: 194, 3:83, 4:48,6:79}
         slice = slice_dict[site[0]]
-        
+        #훈련 데이터로 사용되는 경우 앞부분의 데이터를 사용한다.
         if is_train:
             data = data[:slice]
             labels = labels[:slice]
+        #test나 validation data로 사용될 경우 뒤 부분의 데이터를 사용한다.
         else:
             data = data[slice:]
             labels = labels[slice:]
-        print("확인 :" ,len(data),len(labels))
+        #print("확인 :" ,len(data),len(labels))
         #print("확인 :" ,np.array(data).shape,len(labels))
         return data, labels
+
 #master_df 파일에서 각 사이트의 데이터의 저장 위치를 불러와서 데이터와 label을 내보낸다.
 @dataclass
 class LOSOLoad:
@@ -152,15 +154,23 @@ class LOSOLoad:
     
     #주어진 사이트의 데이터를 불러옴
     def loadSiteData(self, site: Union[List[int], int] = SITE_INDEX):
+        #하나의 사이트가 숫자로 주어졌을 경우 
         if isinstance(site, int):
             site = [site]
-            if len(site) > 1:
-                self.same_size = False
-
+        else: pass
+        #여러 개의 사이트가 주어진 경우 (train data를 불러오는 경우)    
+        if len(site) > 1:
+            self.same_size = False
+        else: pass
+        #해당 사이트에 해당되는 데이터만을 골라 데이터 프레임을 만듬
         df = self.df[self.df['Site'].isin(site)]
+        #데이터 프레임에서 각 데이터가 저장된 경로를 불러와서 이를 numpy array로 저장하고 데이터의 리스트를 만든다.
         data = [np.load(p) for p in df["filePath"].values]
+        #데이터의 해당되는 label(ADHD환자인지 아닌지)를 불러온다.
         labels = df["DX"].values
+        #테스트 데이터에서 각 label을 가지는 데이터의 수가 동일하게 하고 싶은 경우
         if self.same_size:
+            #각 label을 확인하고 0인 것과 1인 것을 구별하여 데이터의 index를 저장한다. 
             label_0 = []
             label_1 = []
             for i, label in enumerate(labels):
@@ -168,22 +178,23 @@ class LOSOLoad:
                     label_0.append(i)
                 else:
                     label_1.append(i)
-            
+            #두 label중 어떤 데이터가 많은지를 비교하고 더 적은 쪽에 맞추어 데이터를 자른다.
             if len(label_0) > len(label_1):
                 label_0 = label_0[:len(label_1)]
             else:
                 label_1 = label_1[:len(label_0)]
-            
+            #잘린 데이터와 label을 저장할 list
             sliced_label = []
             sliced_data = []
+            #데이터의 index들을 합치고 순서대로 정렬한다.
             label = label_0 + label_1
             label = sorted(label)
+            #잘린 데이터의 index로 원하는 데이터만을 저장한다.
             for index in label:
                 sliced_label.append(labels[index])
                 sliced_data.append(data[index])
             data = sliced_data
             labels = np.array(sliced_label)
-            
         
         return data, labels
 
