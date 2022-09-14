@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 from src.data import Load, SITES_DICT, Load_MNIST, LOSOLoad
 
-  
+#Pytorch에서 사용하는 형식에 dataset 설정, 한 사이트에서 train과 test를 나누어서 데이터를 load해옴  
 class ROIDataset(Dataset):
     def __init__( self, is_train: bool, site: Union[List, str]) -> None:
         load = Load()
@@ -25,6 +25,7 @@ class ROIDataset(Dataset):
         label = self.labels[index]
         return data, label
 
+#Pytorch에서 사용하는 형식에 dataset 설정, 한 사이트를 테스트 데이터로 사용하고 나머지를 train 데이터로 사용함
 class LOSODataset(Dataset):
     def __init__( self, site: Union[List, str], same_size:Boolean) -> None:
         load = LOSOLoad(same_size = same_size)
